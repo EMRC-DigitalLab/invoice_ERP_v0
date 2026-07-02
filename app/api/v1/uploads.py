@@ -1,4 +1,5 @@
-from fastapi import APIRouter, UploadFile, File
+from fastapi import APIRouter, File, UploadFile
+
 from app.services.file_upload import save_upload
 
 router = APIRouter(prefix="/uploads", tags=["Uploads"])

@@ -1,9 +1,9 @@
 from fastapi import FastAPI
 from sqlalchemy import text
 
+from app.api.v1.router import router as v1_router
 from app.core.config import settings
 from app.core.database import SessionLocal
-from app.api.v1.router import router as v1_router
 
 app = FastAPI(
     title=settings.APP_NAME,

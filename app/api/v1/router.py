@@ -1,5 +1,6 @@
 from fastapi import APIRouter
-from app.api.v1 import uploads, notifications
+
+from app.api.v1 import notifications, uploads
 
 router = APIRouter()
 

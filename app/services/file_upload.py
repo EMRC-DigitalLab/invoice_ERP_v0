@@ -1,6 +1,8 @@
 import os
 import uuid
-from fastapi import UploadFile, HTTPException
+
+from fastapi import HTTPException, UploadFile
+
 from app.core.config import settings
 
 ALLOWED_TYPES = {"application/pdf", "image/png", "image/jpeg"}
