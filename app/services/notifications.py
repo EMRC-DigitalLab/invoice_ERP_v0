@@ -1,9 +1,7 @@
 import uuid
 from datetime import datetime, timezone
-from typing import List
 
-
-_store: List[dict] = []
+_store: list[dict] = []
 
 
 def create_notification(user_id: str, message: str) -> dict:
