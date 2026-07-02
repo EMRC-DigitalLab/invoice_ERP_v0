@@ -1,0 +1,265 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Invoice ERP · CI/CD Pipeline (registry approach — ghcr.io)
+#
+# Branches:
+#   develop → staging    (Hostinger port :8092)
+#   main    → production (Hostinger port :8091)
+#
+# Flow:
+#   push → quality → test → build (push to ghcr.io) → deploy (SSH: pull + docker run)
+#
+# Registry: GitHub Container Registry (ghcr.io) — free, uses GITHUB_TOKEN automatically
+#
+# Secrets required (GitHub → Settings → Secrets and variables → Actions):
+#
+#   SERVER_HOST                   Hostinger VPS IP address
+#   SERVER_USER                   SSH user on the VPS
+#   SERVER_SSH_KEY                SSH private key (full PEM content)
+#
+#   STAGING_DB_HOST               PostgreSQL host (VPS IP, seen from inside container)
+#   STAGING_DB_PORT               5432
+#   STAGING_DB_USER               staging DB user
+#   STAGING_DB_PASSWORD           staging DB password
+#   STAGING_DB_NAME               staging DB name  e.g. invoice_erp_staging
+#   STAGING_RESEND_API_KEY        Resend API key for staging
+#   STAGING_RESEND_FROM_EMAIL     sender email for staging
+#   STAGING_UPLOAD_DIR            e.g. /opt/invoice_erp/staging/uploads
+#
+#   PRODUCTION_DB_HOST            PostgreSQL host (VPS IP, seen from inside container)
+#   PRODUCTION_DB_PORT            5432
+#   PRODUCTION_DB_USER            production DB user
+#   PRODUCTION_DB_PASSWORD        production DB password
+#   PRODUCTION_DB_NAME            production DB name  e.g. invoice_erp_production
+#   PRODUCTION_RESEND_API_KEY     Resend API key for production
+#   PRODUCTION_RESEND_FROM_EMAIL  sender email for production
+#   PRODUCTION_UPLOAD_DIR         e.g. /opt/invoice_erp/production/uploads
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: '3.12'
+  REGISTRY: ghcr.io/${{ github.repository_owner }}
+  IMAGE_NAME: invoice-erp-api
+
+jobs:
+  # ── 1. Code Quality Gate ───────────────────────────────────────────────────
+  quality:
+    name: Code Quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install ruff
+        run: pip install ruff==0.4.4
+
+      - name: Check formatting
+        run: ruff format --check .
+
+      - name: Lint
+        run: ruff check .
+
+  # ── 2. Tests ───────────────────────────────────────────────────────────────
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    needs: quality
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Run tests
+        run: pytest tests/ -v --tb=short
+
+  # ── 3. Build & Push Image to ghcr.io ──────────────────────────────────────
+  build:
+    name: Build & Push Image
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name == 'push'
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Determine environment tag
+        id: env-tag
+        run: |
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "tag=production" >> $GITHUB_OUTPUT
+          else
+            echo "tag=staging" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.env-tag.outputs.tag }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ── 4. Deploy → Staging (port 8092) ───────────────────────────────────────
+  deploy-staging:
+    name: Deploy → Staging
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/develop'
+    environment: staging
+    steps:
+      - name: Deploy to staging
+        uses: appleboy/ssh-action@v1
+        env:
+          GIT_SHA: ${{ github.sha }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_USER: ${{ github.actor }}
+          DB_HOST: ${{ secrets.STAGING_DB_HOST }}
+          DB_PORT: ${{ secrets.STAGING_DB_PORT }}
+          DB_USER: ${{ secrets.STAGING_DB_USER }}
+          DB_PASSWORD: ${{ secrets.STAGING_DB_PASSWORD }}
+          DB_NAME: ${{ secrets.STAGING_DB_NAME }}
+          RESEND_API_KEY: ${{ secrets.STAGING_RESEND_API_KEY }}
+          RESEND_FROM_EMAIL: ${{ secrets.STAGING_RESEND_FROM_EMAIL }}
+          UPLOAD_DIR: ${{ secrets.STAGING_UPLOAD_DIR }}
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: 22
+          command_timeout: 10m
+          envs: GIT_SHA,GHCR_TOKEN,GHCR_USER,DB_HOST,DB_PORT,DB_USER,DB_PASSWORD,DB_NAME,RESEND_API_KEY,RESEND_FROM_EMAIL,UPLOAD_DIR
+          script: |
+            set -e
+
+            mkdir -p /opt/invoice_erp/staging
+            mkdir -p ${UPLOAD_DIR}
+
+            cat > /opt/invoice_erp/staging/.env << EOF
+            ENV=staging
+            DEBUG=false
+            DB_HOST=${DB_HOST}
+            DB_PORT=${DB_PORT}
+            DB_USER=${DB_USER}
+            DB_PASSWORD='${DB_PASSWORD}'
+            DB_NAME=${DB_NAME}
+            RESEND_API_KEY=${RESEND_API_KEY}
+            RESEND_FROM_EMAIL=${RESEND_FROM_EMAIL}
+            UPLOAD_DIR=${UPLOAD_DIR}
+            EOF
+            sed -i 's/^[[:space:]]*//' /opt/invoice_erp/staging/.env
+
+            echo "${GHCR_TOKEN}" | docker login ghcr.io -u "${GHCR_USER}" --password-stdin
+
+            docker pull ghcr.io/${{ github.repository_owner }}/invoice-erp-api:${GIT_SHA}
+
+            docker stop invoice_erp_staging || true
+            docker rm invoice_erp_staging || true
+
+            docker run -d \
+              --name invoice_erp_staging \
+              --restart unless-stopped \
+              -p 8092:8000 \
+              --add-host=host.docker.internal:host-gateway \
+              --env-file /opt/invoice_erp/staging/.env \
+              -v ${UPLOAD_DIR}:${UPLOAD_DIR} \
+              ghcr.io/${{ github.repository_owner }}/invoice-erp-api:${GIT_SHA}
+
+  # ── 5. Deploy → Production (port 8091) ────────────────────────────────────
+  deploy-production:
+    name: Deploy → Production
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    steps:
+      - name: Deploy to production
+        uses: appleboy/ssh-action@v1
+        env:
+          GIT_SHA: ${{ github.sha }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_USER: ${{ github.actor }}
+          DB_HOST: ${{ secrets.PRODUCTION_DB_HOST }}
+          DB_PORT: ${{ secrets.PRODUCTION_DB_PORT }}
+          DB_USER: ${{ secrets.PRODUCTION_DB_USER }}
+          DB_PASSWORD: ${{ secrets.PRODUCTION_DB_PASSWORD }}
+          DB_NAME: ${{ secrets.PRODUCTION_DB_NAME }}
+          RESEND_API_KEY: ${{ secrets.PRODUCTION_RESEND_API_KEY }}
+          RESEND_FROM_EMAIL: ${{ secrets.PRODUCTION_RESEND_FROM_EMAIL }}
+          UPLOAD_DIR: ${{ secrets.PRODUCTION_UPLOAD_DIR }}
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: 22
+          command_timeout: 10m
+          envs: GIT_SHA,GHCR_TOKEN,GHCR_USER,DB_HOST,DB_PORT,DB_USER,DB_PASSWORD,DB_NAME,RESEND_API_KEY,RESEND_FROM_EMAIL,UPLOAD_DIR
+          script: |
+            set -e
+
+            mkdir -p /opt/invoice_erp/production
+            mkdir -p ${UPLOAD_DIR}
+
+            cat > /opt/invoice_erp/production/.env << EOF
+            ENV=production
+            DEBUG=false
+            DB_HOST=${DB_HOST}
+            DB_PORT=${DB_PORT}
+            DB_USER=${DB_USER}
+            DB_PASSWORD='${DB_PASSWORD}'
+            DB_NAME=${DB_NAME}
+            RESEND_API_KEY=${RESEND_API_KEY}
+            RESEND_FROM_EMAIL=${RESEND_FROM_EMAIL}
+            UPLOAD_DIR=${UPLOAD_DIR}
+            EOF
+            sed -i 's/^[[:space:]]*//' /opt/invoice_erp/production/.env
+
+            echo "${GHCR_TOKEN}" | docker login ghcr.io -u "${GHCR_USER}" --password-stdin
+
+            docker pull ghcr.io/${{ github.repository_owner }}/invoice-erp-api:${GIT_SHA}
+
+            docker stop invoice_erp_production || true
+            docker rm invoice_erp_production || true
+
+            docker run -d \
+              --name invoice_erp_production \
+              --restart always \
+              -p 8091:8000 \
+              --add-host=host.docker.internal:host-gateway \
+              --env-file /opt/invoice_erp/production/.env \
+              -v ${UPLOAD_DIR}:${UPLOAD_DIR} \
+              ghcr.io/${{ github.repository_owner }}/invoice-erp-api:${GIT_SHA}

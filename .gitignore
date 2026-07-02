@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+dist/
+build/
+
+# Env files (never commit real secrets)
+.env
+.env.staging
+.env.production
+
+# Docker
+*.log
+
+# IDE
+.vscode/
+.idea/
