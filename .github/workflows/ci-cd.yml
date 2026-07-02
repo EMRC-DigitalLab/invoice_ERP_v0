@@ -91,6 +91,15 @@ jobs:
         run: pip install -r requirements.txt -r requirements-dev.txt
 
       - name: Run tests
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_USER: test_user
+          DB_PASSWORD: test_password
+          DB_NAME: test_db
+          RESEND_API_KEY: test_key
+          RESEND_FROM_EMAIL: test@test.com
+          UPLOAD_DIR: /tmp/uploads
         run: pytest tests/ -v --tb=short
 
   # ── 3. Build & Push Image to ghcr.io ──────────────────────────────────────
