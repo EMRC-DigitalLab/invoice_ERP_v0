@@ -1,4 +1,5 @@
 from fastapi import APIRouter
+
 from app.services.notifications import get_notifications, mark_read
 
 router = APIRouter(prefix="/notifications", tags=["Notifications"])

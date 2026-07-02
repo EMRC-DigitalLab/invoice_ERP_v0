@@ -1,15 +1,10 @@
-from typing import List
+import uuid
+from datetime import datetime, timezone
 
-
-# Placeholder until DB is wired up.
-# Each notification: {"id", "user_id", "message", "read", "created_at"}
-_store: List[dict] = []
+_store: list[dict] = []
 
 
 def create_notification(user_id: str, message: str) -> dict:
-    import uuid
-    from datetime import datetime, timezone
-
     notification = {
         "id": uuid.uuid4().hex,
         "user_id": user_id,
@@ -28,7 +23,7 @@ def get_notifications(user_id: str, page: int = 1, page_size: int = 20) -> dict:
     return {
         "total": len(user_notifs),
         "page": page,
-        "items": user_notifs[start: start + page_size],
+        "items": user_notifs[start : start + page_size],
     }
 
 

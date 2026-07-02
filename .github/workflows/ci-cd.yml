@@ -49,7 +49,7 @@ concurrency:
 
 env:
   PYTHON_VERSION: '3.12'
-  REGISTRY: ghcr.io/${{ github.repository_owner }}
+  REGISTRY: ghcr.io/emrc-digitallab
   IMAGE_NAME: invoice-erp-api
 
 jobs:
@@ -91,6 +91,15 @@ jobs:
         run: pip install -r requirements.txt -r requirements-dev.txt
 
       - name: Run tests
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_USER: test_user
+          DB_PASSWORD: test_password
+          DB_NAME: test_db
+          RESEND_API_KEY: test_key
+          RESEND_FROM_EMAIL: test@test.com
+          UPLOAD_DIR: /tmp/uploads
         run: pytest tests/ -v --tb=short
 
   # ── 3. Build & Push Image to ghcr.io ──────────────────────────────────────
@@ -114,9 +123,11 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Determine environment tag
-        id: env-tag
+      - name: Determine environment tag and lowercase image
+        id: meta
         run: |
+          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          echo "image=ghcr.io/${OWNER}/${{ env.IMAGE_NAME }}" >> $GITHUB_OUTPUT
           if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
             echo "tag=production" >> $GITHUB_OUTPUT
           else
@@ -129,8 +140,8 @@ jobs:
           context: .
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.env-tag.outputs.tag }}
+            ${{ steps.meta.outputs.image }}:${{ github.sha }}
+            ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.tag }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -185,7 +196,7 @@ jobs:
 
             echo "${GHCR_TOKEN}" | docker login ghcr.io -u "${GHCR_USER}" --password-stdin
 
-            docker pull ghcr.io/${{ github.repository_owner }}/invoice-erp-api:${GIT_SHA}
+            docker pull ghcr.io/emrc-digitallab/invoice-erp-api:${GIT_SHA}
 
             docker stop invoice_erp_staging || true
             docker rm invoice_erp_staging || true
@@ -197,7 +208,7 @@ jobs:
               --add-host=host.docker.internal:host-gateway \
               --env-file /opt/invoice_erp/staging/.env \
               -v ${UPLOAD_DIR}:${UPLOAD_DIR} \
-              ghcr.io/${{ github.repository_owner }}/invoice-erp-api:${GIT_SHA}
+              ghcr.io/emrc-digitallab/invoice-erp-api:${GIT_SHA}
 
   # ── 5. Deploy → Production (port 8091) ────────────────────────────────────
   deploy-production:
@@ -250,7 +261,7 @@ jobs:
 
             echo "${GHCR_TOKEN}" | docker login ghcr.io -u "${GHCR_USER}" --password-stdin
 
-            docker pull ghcr.io/${{ github.repository_owner }}/invoice-erp-api:${GIT_SHA}
+            docker pull ghcr.io/emrc-digitallab/invoice-erp-api:${GIT_SHA}
 
             docker stop invoice_erp_production || true
             docker rm invoice_erp_production || true
@@ -262,4 +273,4 @@ jobs:
               --add-host=host.docker.internal:host-gateway \
               --env-file /opt/invoice_erp/production/.env \
               -v ${UPLOAD_DIR}:${UPLOAD_DIR} \
-              ghcr.io/${{ github.repository_owner }}/invoice-erp-api:${GIT_SHA}
+              ghcr.io/emrc-digitallab/invoice-erp-api:${GIT_SHA}
