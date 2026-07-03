@@ -344,6 +344,7 @@ def create_request(
         amount_proposed=payload.amount_proposed,
     )
     db.add(req)
+    db.flush()
 
     for i, role in enumerate(chain_roles):
         db.add(
