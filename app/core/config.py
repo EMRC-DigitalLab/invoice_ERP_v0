@@ -40,7 +40,13 @@ class Settings(BaseSettings):
     JWT_EXPIRE_MINUTES: int = 1440  # 24 hours
 
     class Config:
-        env_file = ".env"
+        env_file = (
+            ".env.development",
+            ".env.staging",
+            ".env.production",
+            ".env",
+        )
+        env_file_encoding = "utf-8"
         case_sensitive = True
 
 

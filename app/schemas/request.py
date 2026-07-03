@@ -109,6 +109,10 @@ class RequestListResponse(BaseModel):
     meta: dict
 
 
+class AttachmentDetailResponse(BaseModel):
+    data: AttachmentOut
+
+
 # ── Input schemas ──────────────────────────────────────────────────────────────
 
 

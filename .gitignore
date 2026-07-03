@@ -9,6 +9,7 @@ build/
 
 # Env files (never commit real secrets)
 .env
+.env.development
 .env.staging
 .env.production
 

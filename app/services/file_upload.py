@@ -8,16 +8,20 @@ from app.core.config import settings
 ALLOWED_TYPES = {"application/pdf", "image/png", "image/jpeg"}
 
 
-async def save_upload(file: UploadFile, subfolder: str = "") -> str:
+async def save_upload(file: UploadFile, subfolder: str = "") -> dict:
+    """Save an uploaded file and return metadata dict: {path, size, content_type}."""
     if file.content_type not in ALLOWED_TYPES:
-        raise HTTPException(status_code=400, detail="File type not allowed")
+        raise HTTPException(
+            status_code=400, detail="File type not allowed. Accepted: PDF, PNG, JPEG."
+        )
 
     contents = await file.read()
+    size = len(contents)
     max_bytes = settings.MAX_UPLOAD_SIZE_MB * 1024 * 1024
-    if len(contents) > max_bytes:
+    if size > max_bytes:
         raise HTTPException(
             status_code=400,
-            detail=f"File exceeds {settings.MAX_UPLOAD_SIZE_MB}MB limit",
+            detail=f"File exceeds {settings.MAX_UPLOAD_SIZE_MB} MB limit.",
         )
 
     dest_dir = os.path.join(settings.UPLOAD_DIR, subfolder)
@@ -30,7 +34,11 @@ async def save_upload(file: UploadFile, subfolder: str = "") -> str:
     with open(filepath, "wb") as f:
         f.write(contents)
 
-    return os.path.join(subfolder, filename).replace("\\", "/")
+    return {
+        "path": os.path.join(subfolder, filename).replace("\\", "/"),
+        "size": size,
+        "content_type": file.content_type or "application/octet-stream",
+    }
 
 
 def delete_upload(relative_path: str) -> None:
