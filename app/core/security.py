@@ -11,6 +11,7 @@ from app.core.database import get_db
 from app.models.user import User
 
 _bearer = HTTPBearer()
+_bearer_optional = HTTPBearer(auto_error=False)
 
 
 def verify_password(plain: str, hashed: str) -> bool:
@@ -55,3 +56,25 @@ def get_current_user(
     if user is None or not user.is_active:
         raise exc
     return user
+
+
+def get_optional_current_user(
+    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_optional),
+    db: Session = Depends(get_db),
+) -> User | None:
+    """Returns the current user if a valid Bearer token is present, otherwise None."""
+    if credentials is None:
+        return None
+    try:
+        payload = jwt.decode(
+            credentials.credentials,
+            settings.JWT_SECRET,
+            algorithms=[settings.JWT_ALGORITHM],
+        )
+        user_id: str | None = payload.get("sub")
+        if user_id is None:
+            return None
+        user = db.get(User, user_id)
+        return user if user and user.is_active else None
+    except JWTError:
+        return None

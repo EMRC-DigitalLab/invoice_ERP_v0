@@ -35,3 +35,27 @@ class LogMeta(BaseModel):
 class LogListResponse(BaseModel):
     data: list[RequestLogOut]
     meta: LogMeta
+
+
+class LogAccessKeyOut(BaseModel):
+    model_config = _camel_cfg
+
+    id: str
+    label: str
+    created_by_name: str
+    created_at: datetime
+    last_used_at: datetime | None = None
+    is_active: bool
+
+
+class CreateKeyPayload(BaseModel):
+    label: str
+
+
+class CreateKeyResponse(BaseModel):
+    data: LogAccessKeyOut
+    api_key: str  # shown once — never stored in plain text
+
+
+class KeyListResponse(BaseModel):
+    data: list[LogAccessKeyOut]
