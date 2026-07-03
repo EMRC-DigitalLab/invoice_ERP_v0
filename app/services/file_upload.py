@@ -25,14 +25,27 @@ async def save_upload(file: UploadFile, subfolder: str = "") -> dict:
         )
 
     dest_dir = os.path.join(settings.UPLOAD_DIR, subfolder)
-    os.makedirs(dest_dir, exist_ok=True)
+
+    try:
+        os.makedirs(dest_dir, exist_ok=True)
+    except OSError as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Could not create upload directory ({settings.UPLOAD_DIR}): {exc}",
+        ) from exc
 
     ext = os.path.splitext(file.filename or "")[1]
     filename = f"{uuid.uuid4().hex}{ext}"
     filepath = os.path.join(dest_dir, filename)
 
-    with open(filepath, "wb") as f:
-        f.write(contents)
+    try:
+        with open(filepath, "wb") as f:
+            f.write(contents)
+    except OSError as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Could not save uploaded file: {exc}",
+        ) from exc
 
     return {
         "path": os.path.join(subfolder, filename).replace("\\", "/"),

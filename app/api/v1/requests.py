@@ -279,6 +279,12 @@ def create_request(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    if not current_user.department_id:
+        raise HTTPException(
+            status_code=400,
+            detail="You must be assigned to a department before submitting a request. Contact an administrator.",
+        )
+
     req_id = uuid.uuid4().hex
     year = datetime.now(timezone.utc).year
     count = db.query(Request).count() + 1
@@ -302,7 +308,7 @@ def create_request(
         type=payload.type,
         subject=payload.subject,
         department=current_user.department,
-        requester_department_id=current_user.department_id or "",
+        requester_department_id=current_user.department_id,
         requester_region_id=current_user.region_id,
         status="draft",
         currency="NGN",

@@ -13,6 +13,8 @@ from app.schemas.auth import UserOut
 from app.schemas.org import (
     AssignmentDetailResponse,
     AssignmentListResponse,
+    CreateDepartmentPayload,
+    CreateRegionPayload,
     DepartmentDetailResponse,
     DepartmentListResponse,
     DepartmentOut,
@@ -146,6 +148,30 @@ def list_departments(
     return DepartmentListResponse(data=items, meta=MetaOut(total=len(items)))
 
 
+@router.post(
+    "/departments",
+    status_code=status.HTTP_201_CREATED,
+    response_model=DepartmentDetailResponse,
+)
+def create_department(
+    payload: CreateDepartmentPayload,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    _require_admin(current_user)
+
+    dept = Department(
+        id=uuid.uuid4().hex,
+        name=payload.name,
+        head_user_id=payload.head_user_id,
+        project_owner_user_id=payload.project_owner_user_id,
+    )
+    db.add(dept)
+    db.commit()
+    db.refresh(dept)
+    return DepartmentDetailResponse(data=DepartmentOut.model_validate(dept))
+
+
 @router.patch("/departments/{dept_id}", response_model=DepartmentDetailResponse)
 def update_department(
     dept_id: str,
@@ -178,6 +204,29 @@ def list_regions(
     regions = db.query(Region).order_by(Region.name).all()
     items = [RegionOut.model_validate(r) for r in regions]
     return RegionListResponse(data=items, meta=MetaOut(total=len(items)))
+
+
+@router.post(
+    "/regions",
+    status_code=status.HTTP_201_CREATED,
+    response_model=RegionDetailResponse,
+)
+def create_region(
+    payload: CreateRegionPayload,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    _require_admin(current_user)
+
+    region = Region(
+        id=uuid.uuid4().hex,
+        name=payload.name,
+        regional_manager_user_id=payload.regional_manager_user_id,
+    )
+    db.add(region)
+    db.commit()
+    db.refresh(region)
+    return RegionDetailResponse(data=RegionOut.model_validate(region))
 
 
 @router.patch("/regions/{region_id}", response_model=RegionDetailResponse)
