@@ -72,12 +72,27 @@ class UpdateStaffPayload(BaseModel):
     is_admin: bool | None = None
 
 
+class CreateDepartmentPayload(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
+
+    name: str
+    head_user_id: str | None = None
+    project_owner_user_id: str | None = None
+
+
 class UpdateDepartmentPayload(BaseModel):
     model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
 
     name: str | None = None
     head_user_id: str | None = None
     project_owner_user_id: str | None = None
+
+
+class CreateRegionPayload(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
+
+    name: str
+    regional_manager_user_id: str | None = None
 
 
 class UpdateRegionPayload(BaseModel):
