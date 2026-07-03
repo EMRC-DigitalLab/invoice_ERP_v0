@@ -8,10 +8,14 @@ Requires all env vars (DB_HOST, DB_USER, etc.) to already be set —
 they are when running inside the Docker container.
 """
 
+import os
 import secrets
 import sys
 import uuid
 from datetime import datetime, timezone
+
+# Add project root to path so `import app.*` works when called as a script
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import app.models  # noqa: F401 — registers all tables with Base.metadata
 from app.core.database import Base, SessionLocal, engine
