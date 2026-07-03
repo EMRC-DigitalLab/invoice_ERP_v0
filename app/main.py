@@ -7,6 +7,7 @@ from sqlalchemy import text
 from app.api.v1.router import router as v1_router
 from app.core.config import settings
 from app.core.database import Base, SessionLocal, engine
+from app.middleware.request_logger import RequestLoggingMiddleware
 
 
 @asynccontextmanager
@@ -24,6 +25,8 @@ app = FastAPI(
     redoc_url="/redoc",
     openapi_url="/openapi.json",
 )
+
+app.add_middleware(RequestLoggingMiddleware)
 
 app.add_middleware(
     CORSMiddleware,
