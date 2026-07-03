@@ -7,6 +7,7 @@ from sqlalchemy import text
 from app.api.v1.router import router as v1_router
 from app.core.config import settings
 from app.core.database import Base, SessionLocal, engine
+from app.core.migrations import run_pending_migrations
 from app.middleware.request_logger import RequestLoggingMiddleware
 
 
@@ -15,6 +16,7 @@ async def lifespan(_app: FastAPI):
     import app.models  # noqa: F401 — registers all tables with Base.metadata
 
     Base.metadata.create_all(bind=engine)
+    run_pending_migrations(engine)
     yield
 
 

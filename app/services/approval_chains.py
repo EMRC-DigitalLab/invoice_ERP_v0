@@ -7,7 +7,15 @@ CHAIN_ROLE_LEVEL: dict[str, int] = {
     "cfo": 5,
 }
 
-_PROJECT_PAYMENT_CHAIN = ["project_owner", "procurement", "finance_control", "cfo"]
+# Per the CFO's 2026-07 review call, the Invoice Submitter Form (formerly
+# "Procurement Form") chain is collapsed to CFO-only for now — Project Owner /
+# Procurement / Finance & Control are deferred as a later "backward
+# integration" once those roles/PO records actually exist. Flip this flag to
+# restore the full chain without any other code change.
+PROJECT_PAYMENT_BACKWARD_INTEGRATION_ENABLED = False
+
+_PROJECT_PAYMENT_FULL_CHAIN = ["project_owner", "procurement", "finance_control", "cfo"]
+_PROJECT_PAYMENT_CFO_ONLY_CHAIN = ["cfo"]
 _ADV_EXP_PROP_BASE = [
     "department_head",
     "regional_department_head",
@@ -20,7 +28,11 @@ _THRESHOLD = 150_000.0
 
 def build_chain(request_type: str, amount: float, requester_role: str) -> list[str]:
     if request_type == "project_payment":
-        return list(_PROJECT_PAYMENT_CHAIN)
+        return list(
+            _PROJECT_PAYMENT_FULL_CHAIN
+            if PROJECT_PAYMENT_BACKWARD_INTEGRATION_ENABLED
+            else _PROJECT_PAYMENT_CFO_ONLY_CHAIN
+        )
 
     chain = list(_ADV_EXP_PROP_BASE)
 

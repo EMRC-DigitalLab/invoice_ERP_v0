@@ -20,6 +20,7 @@ class ApprovalStepOut(BaseModel):
     acted_at: datetime | None = None
     comment: str | None = None
     signature: str | None = None
+    reservation: bool | None = None
 
 
 class AttachmentOut(BaseModel):
@@ -74,14 +75,16 @@ class RequestOut(BaseModel):
     po_number: str | None = None
     project_owner_department: str | None = None
     project_owner_department_id: str | None = None
-    project_start_date: str | None = None
-    total_project_sum: float | None = None
-    project_kind: str | None = None
+    service_order_name: str | None = None
+    contractor_name: str | None = None
+    invoice_number: str | None = None
+    invoice_date: str | None = None
     amount_due: float | None = None
-    vendor_name: str | None = None
-    vendor_bank_name: str | None = None
-    vendor_account_name: str | None = None
-    vendor_account_no: str | None = None
+    payment_timeframe_days: int | None = None
+    payment_option: str | None = None
+    tin: str | None = None
+    service_status: str | None = None
+    documents_confirmed: bool | None = None
 
     # advance
     advance_details: str | None = None
@@ -134,14 +137,17 @@ class CreateRequestPayload(BaseModel):
     # project_payment
     po_number: str | None = None
     project_owner_department_id: str | None = None
-    project_start_date: str | None = None
-    total_project_sum: float | None = None
-    project_kind: str | None = None
+    service_order_name: str | None = None
+    contractor_name: str | None = None
+    invoice_number: str | None = None
+    invoice_date: str | None = None
     amount_due: float | None = None
-    vendor_name: str | None = None
-    vendor_bank_name: str | None = None
-    vendor_account_name: str | None = None
-    vendor_account_no: str | None = None
+    payment_timeframe_days: int | None = None
+    payment_option: str | None = None
+    tin: str | None = None
+    service_status: str | None = None
+    documents_confirmed: bool | None = None
+    currency: str | None = None
 
     # advance
     advance_details: str | None = None
@@ -165,6 +171,7 @@ class CreateRequestPayload(BaseModel):
 class ActionPayload(BaseModel):
     comment: str | None = None
     signature: str | None = None
+    reservation: bool | None = None
 
 
 class ClosePayload(BaseModel):

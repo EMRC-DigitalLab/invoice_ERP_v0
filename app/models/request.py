@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String
+from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String
 
 from app.core.database import Base
 
@@ -38,18 +38,22 @@ class Request(Base):
     submitted_at = Column(DateTime(timezone=True), nullable=True)
     closed_at = Column(DateTime(timezone=True), nullable=True)
 
-    # project_payment fields
+    # project_payment fields — per the CFO's 2026-07 review call, renamed
+    # "Invoice Submitter Form"; vendor bank/account fields removed (sourced
+    # from procurement's own PO records, not staff-entered here).
     po_number = Column(String, nullable=True)
     project_owner_department = Column(String, nullable=True)
     project_owner_department_id = Column(String, nullable=True)
-    project_start_date = Column(String, nullable=True)
-    total_project_sum = Column(Float, nullable=True)
-    project_kind = Column(String, nullable=True)  # one_off | recurring
+    service_order_name = Column(String, nullable=True)
+    contractor_name = Column(String, nullable=True)
+    invoice_number = Column(String, nullable=True)
+    invoice_date = Column(String, nullable=True)
     amount_due = Column(Float, nullable=True)
-    vendor_name = Column(String, nullable=True)
-    vendor_bank_name = Column(String, nullable=True)
-    vendor_account_name = Column(String, nullable=True)
-    vendor_account_no = Column(String, nullable=True)
+    payment_timeframe_days = Column(Integer, nullable=True)
+    payment_option = Column(String, nullable=True)  # arrears | advance
+    tin = Column(String, nullable=True)
+    service_status = Column(String, nullable=True)  # completed | milestone
+    documents_confirmed = Column(Boolean, default=False, nullable=False)
 
     # advance fields
     advance_details = Column(String, nullable=True)
@@ -83,6 +87,7 @@ class ApprovalStep(Base):
     acted_at = Column(DateTime(timezone=True), nullable=True)
     comment = Column(String, nullable=True)
     signature = Column(String, nullable=True)
+    reservation = Column(Boolean, nullable=True)
 
 
 class Attachment(Base):

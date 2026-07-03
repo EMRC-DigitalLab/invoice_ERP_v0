@@ -294,6 +294,12 @@ def create_request(
     amount = get_effective_amount(payload)
     chain_roles = build_chain(payload.type, amount, current_user.role)
 
+    currency = (
+        payload.currency
+        if payload.type == "project_payment" and payload.currency
+        else "NGN"
+    )
+
     # Stamp project_owner_department display name server-side
     proj_owner_dept_name = None
     if payload.type == "project_payment" and payload.project_owner_department_id:
@@ -311,7 +317,7 @@ def create_request(
         requester_department_id=current_user.department_id,
         requester_region_id=current_user.region_id,
         status="draft",
-        currency="NGN",
+        currency=currency,
         requested_by=current_user.name,
         requested_by_id=current_user.id,
         requester_role=current_user.role,
@@ -322,14 +328,16 @@ def create_request(
         po_number=payload.po_number,
         project_owner_department=proj_owner_dept_name,
         project_owner_department_id=payload.project_owner_department_id,
-        project_start_date=payload.project_start_date,
-        total_project_sum=payload.total_project_sum,
-        project_kind=payload.project_kind,
+        service_order_name=payload.service_order_name,
+        contractor_name=payload.contractor_name,
+        invoice_number=payload.invoice_number,
+        invoice_date=payload.invoice_date,
         amount_due=payload.amount_due,
-        vendor_name=payload.vendor_name,
-        vendor_bank_name=payload.vendor_bank_name,
-        vendor_account_name=payload.vendor_account_name,
-        vendor_account_no=payload.vendor_account_no,
+        payment_timeframe_days=payload.payment_timeframe_days,
+        payment_option=payload.payment_option,
+        tin=payload.tin,
+        service_status=payload.service_status,
+        documents_confirmed=payload.documents_confirmed or False,
         # advance
         advance_details=payload.advance_details,
         # expense
@@ -458,6 +466,11 @@ def approve_request(
             status_code=400,
             detail="An e-signature is required for the final approval.",
         )
+    if payload.reservation and not (payload.comment and payload.comment.strip()):
+        raise HTTPException(
+            status_code=400,
+            detail="A comment is required when approving with a reservation.",
+        )
 
     now = datetime.now(timezone.utc)
     step.status = "approved"
@@ -465,6 +478,7 @@ def approve_request(
     step.acted_by_name = current_user.name
     step.acted_at = now
     step.comment = payload.comment
+    step.reservation = payload.reservation or None
     if is_final:
         step.signature = payload.signature
 
@@ -473,7 +487,8 @@ def approve_request(
         sig_line = f"Signed: {payload.signature}"
         audit_note = f"{sig_line}. {audit_note}" if audit_note else sig_line
 
-    _add_audit(db, req.id, "Approved", current_user, note=audit_note)
+    audit_action = "Approved (with reservation)" if payload.reservation else "Approved"
+    _add_audit(db, req.id, audit_action, current_user, note=audit_note)
 
     if is_final:
         req.status = "approved"
@@ -513,7 +528,11 @@ def return_request(
     req.current_step_index = -1
     req.updated_at = now
 
-    _add_audit(db, req.id, "Returned", current_user, note=payload.comment)
+    # Label matches the CFO's "Seek Further Clarification" terminology for
+    # this decision — status/behavior are unchanged (still `returned`).
+    _add_audit(
+        db, req.id, "Seek Further Clarification", current_user, note=payload.comment
+    )
     db.commit()
     db.refresh(req)
     return RequestDetailResponse(data=_build_request_out(db, req))
