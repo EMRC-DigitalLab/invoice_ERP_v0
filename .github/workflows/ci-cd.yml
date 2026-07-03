@@ -24,6 +24,7 @@
 #   STAGING_RESEND_API_KEY        Resend API key for staging
 #   STAGING_RESEND_FROM_EMAIL     sender email for staging
 #   STAGING_UPLOAD_DIR            e.g. /opt/invoice_erp/staging/uploads
+#   STAGING_JWT_SECRET            random 32+ char secret for JWT signing
 #
 #   PRODUCTION_DB_HOST            PostgreSQL host (VPS IP, seen from inside container)
 #   PRODUCTION_DB_PORT            5432
@@ -33,6 +34,7 @@
 #   PRODUCTION_RESEND_API_KEY     Resend API key for production
 #   PRODUCTION_RESEND_FROM_EMAIL  sender email for production
 #   PRODUCTION_UPLOAD_DIR         e.g. /opt/invoice_erp/production/uploads
+#   PRODUCTION_JWT_SECRET         random 32+ char secret for JWT signing
 # ─────────────────────────────────────────────────────────────────────────────
 
 name: CI/CD Pipeline
@@ -100,6 +102,7 @@ jobs:
           RESEND_API_KEY: test_key
           RESEND_FROM_EMAIL: test@test.com
           UPLOAD_DIR: /tmp/uploads
+          JWT_SECRET: test_jwt_secret_for_ci_pipeline_minimum_32chars
         run: pytest tests/ -v --tb=short
 
   # ── 3. Build & Push Image to ghcr.io ──────────────────────────────────────
@@ -167,13 +170,14 @@ jobs:
           RESEND_API_KEY: ${{ secrets.STAGING_RESEND_API_KEY }}
           RESEND_FROM_EMAIL: ${{ secrets.STAGING_RESEND_FROM_EMAIL }}
           UPLOAD_DIR: ${{ secrets.STAGING_UPLOAD_DIR }}
+          JWT_SECRET: ${{ secrets.STAGING_JWT_SECRET }}
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: 22
           command_timeout: 10m
-          envs: GIT_SHA,GHCR_TOKEN,GHCR_USER,DB_HOST,DB_PORT,DB_USER,DB_PASSWORD,DB_NAME,RESEND_API_KEY,RESEND_FROM_EMAIL,UPLOAD_DIR
+          envs: GIT_SHA,GHCR_TOKEN,GHCR_USER,DB_HOST,DB_PORT,DB_USER,DB_PASSWORD,DB_NAME,RESEND_API_KEY,RESEND_FROM_EMAIL,UPLOAD_DIR,JWT_SECRET
           script: |
             set -e
 
@@ -191,6 +195,7 @@ jobs:
             RESEND_API_KEY=${RESEND_API_KEY}
             RESEND_FROM_EMAIL=${RESEND_FROM_EMAIL}
             UPLOAD_DIR=${UPLOAD_DIR}
+            JWT_SECRET=${JWT_SECRET}
             EOF
             sed -i 's/^[[:space:]]*//' /opt/invoice_erp/staging/.env
 
@@ -232,13 +237,14 @@ jobs:
           RESEND_API_KEY: ${{ secrets.PRODUCTION_RESEND_API_KEY }}
           RESEND_FROM_EMAIL: ${{ secrets.PRODUCTION_RESEND_FROM_EMAIL }}
           UPLOAD_DIR: ${{ secrets.PRODUCTION_UPLOAD_DIR }}
+          JWT_SECRET: ${{ secrets.PRODUCTION_JWT_SECRET }}
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: 22
           command_timeout: 10m
-          envs: GIT_SHA,GHCR_TOKEN,GHCR_USER,DB_HOST,DB_PORT,DB_USER,DB_PASSWORD,DB_NAME,RESEND_API_KEY,RESEND_FROM_EMAIL,UPLOAD_DIR
+          envs: GIT_SHA,GHCR_TOKEN,GHCR_USER,DB_HOST,DB_PORT,DB_USER,DB_PASSWORD,DB_NAME,RESEND_API_KEY,RESEND_FROM_EMAIL,UPLOAD_DIR,JWT_SECRET
           script: |
             set -e
 
@@ -256,6 +262,7 @@ jobs:
             RESEND_API_KEY=${RESEND_API_KEY}
             RESEND_FROM_EMAIL=${RESEND_FROM_EMAIL}
             UPLOAD_DIR=${UPLOAD_DIR}
+            JWT_SECRET=${JWT_SECRET}
             EOF
             sed -i 's/^[[:space:]]*//' /opt/invoice_erp/production/.env
 

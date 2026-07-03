@@ -1,15 +1,37 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
 from app.api.v1.router import router as v1_router
 from app.core.config import settings
-from app.core.database import SessionLocal
+from app.core.database import Base, SessionLocal, engine
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    import app.models  # noqa: F401 — registers all tables with Base.metadata
+
+    Base.metadata.create_all(bind=engine)
+    yield
+
 
 app = FastAPI(
     title=settings.APP_NAME,
+    lifespan=lifespan,
     docs_url="/docs",
     redoc_url="/redoc",
     openapi_url="/openapi.json",
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"] if settings.ENV != "production" else [],
+    allow_origin_regex=r"(https://.*\.vercel\.app|http://localhost(:\d+)?|http://127\.0\.0\.1(:\d+)?)",
+    allow_methods=["*"],
+    allow_headers=["*"],
+    allow_credentials=False,
 )
 
 app.include_router(v1_router, prefix=settings.API_V1_PREFIX)

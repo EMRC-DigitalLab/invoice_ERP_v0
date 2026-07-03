@@ -34,6 +34,11 @@ class Settings(BaseSettings):
     # In-app notifications
     NOTIFICATIONS_PAGE_SIZE: int = 20
 
+    # JWT auth
+    JWT_SECRET: str
+    JWT_ALGORITHM: str = "HS256"
+    JWT_EXPIRE_MINUTES: int = 1440  # 24 hours
+
     class Config:
         env_file = ".env"
         case_sensitive = True
