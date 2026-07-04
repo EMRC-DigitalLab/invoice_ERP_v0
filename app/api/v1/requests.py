@@ -35,6 +35,7 @@ from app.services.approval_chains import build_chain, get_effective_amount
 from app.services.file_upload import delete_upload, save_upload
 from app.services.org_resolver import resolve_role_to_user
 from app.services.pdf_export import generate_period_report_pdf, generate_request_pdf
+from app.services.po_ledger import committed_amount_for_po
 
 router = APIRouter(prefix="/requests", tags=["requests"])
 
@@ -414,6 +415,17 @@ def create_request(
         po = db.get(PurchaseOrder, payload.po_id)
         if po is None:
             raise HTTPException(status_code=400, detail="Unknown purchase order.")
+
+        committed = committed_amount_for_po(db, po.id)
+        remaining = po.contract_amount - committed
+        if payload.amount_due and payload.amount_due > remaining:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"This invoice ({payload.amount_due:,.2f} {po.currency}) exceeds "
+                    f"the PO's remaining balance of {remaining:,.2f} {po.currency}."
+                ),
+            )
 
     currency = po.currency if po else "NGN"
 

@@ -48,3 +48,27 @@ class CreatePurchaseOrderPayload(BaseModel):
     description: str | None = None
     date_issued: str | None = None
     status: str = "active"
+
+
+class UpdatePurchaseOrderPayload(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
+
+    po_number: str | None = None
+    contractor_name: str | None = None
+    contract_amount: float | None = None
+    currency: str | None = None
+    department_id: str | None = None
+    description: str | None = None
+    date_issued: str | None = None
+    status: str | None = None
+
+
+class BatchUploadResult(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
+
+    created: int
+    skipped: list[str]
+
+
+class BatchUploadResponse(BaseModel):
+    data: BatchUploadResult

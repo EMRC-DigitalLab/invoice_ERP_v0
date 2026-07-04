@@ -1,8 +1,10 @@
+import csv
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
+from io import StringIO
 
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func
+import openpyxl
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -12,32 +14,32 @@ from app.models.purchase_order import PurchaseOrder
 from app.models.request import Request
 from app.models.user import User
 from app.schemas.purchase_order import (
+    BatchUploadResponse,
+    BatchUploadResult,
     CreatePurchaseOrderPayload,
     PurchaseOrderDetailResponse,
     PurchaseOrderListResponse,
     PurchaseOrderOut,
+    UpdatePurchaseOrderPayload,
 )
+from app.services.po_ledger import committed_amount_for_po
 
 router = APIRouter(prefix="/purchase-orders", tags=["purchase-orders"])
 
-# Requests in these statuses count against a PO's contract ceiling; draft,
-# returned, and rejected requests haven't committed real spend yet.
-_COMMITTED_STATUSES = ("in_review", "approved", "closed")
-
-
-def _committed_amount(db: Session, po_id: str) -> float:
-    total = (
-        db.query(func.coalesce(func.sum(Request.amount_due), 0.0))
-        .filter(Request.po_id == po_id, Request.status.in_(_COMMITTED_STATUSES))
-        .scalar()
-    )
-    return float(total or 0.0)
+_CURRENCY_LABELS = {
+    "naira (ngn)": "NGN",
+    "dollar (usd)": "USD",
+    "pound (gbp)": "GBP",
+    "ngn": "NGN",
+    "usd": "USD",
+    "gbp": "GBP",
+}
 
 
 def _to_out(
     db: Session, po: PurchaseOrder, dept_names: dict[str, str]
 ) -> PurchaseOrderOut:
-    committed = _committed_amount(db, po.id)
+    committed = committed_amount_for_po(db, po.id)
     return PurchaseOrderOut(
         id=po.id,
         po_number=po.po_number,
@@ -118,6 +120,181 @@ def create_purchase_order(
     return PurchaseOrderDetailResponse(data=_to_out(db, po, dept_names))
 
 
+@router.get("/export/csv")
+def export_purchase_orders_csv(
+    search: str | None = Query(None),
+    status: str | None = Query(None),
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(get_current_user),
+):
+    query = db.query(PurchaseOrder)
+    if status and status != "all":
+        query = query.filter(PurchaseOrder.status == status)
+    if search:
+        like = f"%{search.strip()}%"
+        query = query.filter(
+            (PurchaseOrder.po_number.ilike(like))
+            | (PurchaseOrder.contractor_name.ilike(like))
+        )
+    purchase_orders = query.order_by(PurchaseOrder.created_at.desc()).all()
+    dept_names = {d.id: d.name for d in db.query(Department).all()}
+
+    buf = StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(
+        [
+            "PO Number",
+            "Contractor Name",
+            "Contract Amount",
+            "Currency",
+            "Department",
+            "Description",
+            "Date Issued",
+            "Status",
+            "Amount Committed",
+            "Amount Remaining",
+            "Created At",
+        ]
+    )
+    for po in purchase_orders:
+        committed = committed_amount_for_po(db, po.id)
+        writer.writerow(
+            [
+                po.po_number,
+                po.contractor_name,
+                po.contract_amount,
+                po.currency,
+                dept_names.get(po.department_id, po.department_id),
+                po.description or "",
+                po.date_issued or "",
+                po.status,
+                committed,
+                max(po.contract_amount - committed, 0.0),
+                po.created_at.isoformat(),
+            ]
+        )
+
+    filename = (
+        f"IBEDC-purchase-orders-{datetime.now(timezone.utc).date().isoformat()}.csv"
+    )
+    return Response(
+        content=buf.getvalue(),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+def _parse_currency(raw: str | None) -> str | None:
+    if not raw:
+        return None
+    return _CURRENCY_LABELS.get(raw.strip().lower(), raw.strip().upper())
+
+
+def _parse_cell_date(value) -> str | None:
+    if value is None or value == "":
+        return None
+    if isinstance(value, (datetime, date)):
+        return value.isoformat()[:10]
+    return str(value).strip()
+
+
+@router.post("/batch-upload", response_model=BatchUploadResponse)
+def batch_upload_purchase_orders(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if not (file.filename or "").lower().endswith((".xlsx", ".xlsm")):
+        raise HTTPException(
+            status_code=400, detail="Please upload the .xlsx PO upload template."
+        )
+
+    try:
+        workbook = openpyxl.load_workbook(file.file, data_only=True)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=400, detail=f"Could not read the file: {exc}"
+        ) from exc
+
+    sheet = (
+        workbook["PO Upload Template"]
+        if "PO Upload Template" in workbook.sheetnames
+        else workbook.worksheets[0]
+    )
+    departments_by_name = {
+        d.name.strip().lower(): d for d in db.query(Department).all()
+    }
+
+    created = 0
+    skipped: list[str] = []
+    now = datetime.now(timezone.utc)
+
+    # Row 1 = headers, row 2 = filled-in example — real data starts row 3.
+    for row_index, row in enumerate(
+        sheet.iter_rows(min_row=3, values_only=True), start=3
+    ):
+        (
+            po_number,
+            contractor_name,
+            contract_amount,
+            currency_raw,
+            department_name,
+            description,
+            date_issued_raw,
+            status_raw,
+        ) = (list(row) + [None] * 8)[:8]
+
+        if not po_number and not contractor_name:
+            continue  # blank row
+
+        po_number = str(po_number).strip() if po_number else ""
+        if not po_number:
+            skipped.append(f"Row {row_index}: missing PO number.")
+            continue
+        if not contractor_name:
+            skipped.append(f"Row {row_index} ({po_number}): missing contractor name.")
+            continue
+        if not contract_amount:
+            skipped.append(f"Row {row_index} ({po_number}): missing contract amount.")
+            continue
+        if db.query(PurchaseOrder).filter(PurchaseOrder.po_number == po_number).first():
+            skipped.append(
+                f"Row {row_index} ({po_number}): a PO with this number already exists."
+            )
+            continue
+
+        department = departments_by_name.get(str(department_name or "").strip().lower())
+        if department is None:
+            skipped.append(
+                f"Row {row_index} ({po_number}): unknown department '{department_name}'."
+            )
+            continue
+
+        currency = _parse_currency(str(currency_raw) if currency_raw else None) or "NGN"
+        status_value = str(status_raw).strip().lower() if status_raw else "active"
+        if status_value not in ("active", "closed"):
+            status_value = "active"
+
+        po = PurchaseOrder(
+            id=uuid.uuid4().hex,
+            po_number=po_number,
+            contractor_name=str(contractor_name).strip(),
+            contract_amount=float(contract_amount),
+            currency=currency,
+            department_id=department.id,
+            description=str(description).strip() if description else None,
+            date_issued=_parse_cell_date(date_issued_raw),
+            status=status_value,
+            created_by_id=current_user.id,
+            created_at=now,
+        )
+        db.add(po)
+        created += 1
+
+    db.commit()
+    return BatchUploadResponse(data=BatchUploadResult(created=created, skipped=skipped))
+
+
 @router.get("/{po_id}", response_model=PurchaseOrderDetailResponse)
 def get_purchase_order(
     po_id: str,
@@ -129,3 +306,71 @@ def get_purchase_order(
         raise HTTPException(status_code=404, detail="Purchase order not found.")
     dept_names = {d.id: d.name for d in db.query(Department).all()}
     return PurchaseOrderDetailResponse(data=_to_out(db, po, dept_names))
+
+
+@router.patch("/{po_id}", response_model=PurchaseOrderDetailResponse)
+def update_purchase_order(
+    po_id: str,
+    payload: UpdatePurchaseOrderPayload,
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(get_current_user),
+):
+    po = db.get(PurchaseOrder, po_id)
+    if po is None:
+        raise HTTPException(status_code=404, detail="Purchase order not found.")
+
+    if payload.po_number and payload.po_number != po.po_number:
+        if (
+            db.query(PurchaseOrder)
+            .filter(
+                PurchaseOrder.po_number == payload.po_number, PurchaseOrder.id != po_id
+            )
+            .first()
+        ):
+            raise HTTPException(
+                status_code=409, detail="A PO with this number already exists."
+            )
+        po.po_number = payload.po_number.strip()
+
+    if payload.contractor_name is not None:
+        po.contractor_name = payload.contractor_name.strip()
+    if payload.contract_amount is not None:
+        po.contract_amount = payload.contract_amount
+    if payload.currency is not None:
+        po.currency = payload.currency
+    if payload.department_id is not None:
+        department = db.get(Department, payload.department_id)
+        if department is None:
+            raise HTTPException(status_code=400, detail="Unknown department.")
+        po.department_id = payload.department_id
+    if payload.description is not None:
+        po.description = payload.description
+    if payload.date_issued is not None:
+        po.date_issued = payload.date_issued
+    if payload.status is not None:
+        po.status = payload.status
+
+    db.commit()
+    db.refresh(po)
+    dept_names = {d.id: d.name for d in db.query(Department).all()}
+    return PurchaseOrderDetailResponse(data=_to_out(db, po, dept_names))
+
+
+@router.delete("/{po_id}", status_code=204)
+def delete_purchase_order(
+    po_id: str,
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(get_current_user),
+):
+    po = db.get(PurchaseOrder, po_id)
+    if po is None:
+        raise HTTPException(status_code=404, detail="Purchase order not found.")
+
+    if db.query(Request).filter(Request.po_id == po_id).first():
+        raise HTTPException(
+            status_code=409,
+            detail="This PO has requests submitted against it and can't be deleted — mark it Closed instead.",
+        )
+
+    db.delete(po)
+    db.commit()
