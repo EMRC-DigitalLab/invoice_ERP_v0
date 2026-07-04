@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from fastapi import (
     APIRouter,
@@ -11,6 +11,7 @@ from fastapi import (
     UploadFile,
     status,
 )
+from fastapi import Request as HTTPRequest
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -33,7 +34,8 @@ from app.schemas.request import (
 from app.services.approval_chains import build_chain, get_effective_amount
 from app.services.file_upload import delete_upload, save_upload
 from app.services.org_resolver import resolve_role_to_user
-from app.services.pdf_export import generate_request_pdf
+from app.services.pdf_export import generate_period_report_pdf, generate_request_pdf
+from app.services.public_url import get_public_base_url
 
 router = APIRouter(prefix="/requests", tags=["requests"])
 
@@ -49,6 +51,8 @@ ROLE_LABELS: dict[str, str] = {
     "procurement": "Procurement",
     "cfo": "CFO",
 }
+
+_REPORT_ROLES = {"finance_control", "finance_controller", "cfo"}
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
@@ -269,6 +273,57 @@ def get_summary(
             closed=counts["closed"],
             totalValue=total_value,
         )
+    )
+
+
+@router.get("/reports/pdf")
+def get_period_report_pdf(
+    from_date: str | None = Query(None, alias="from"),
+    to_date: str | None = Query(None, alias="to"),
+    status: str = Query("approved"),
+    type: str | None = Query(None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.role not in _REPORT_ROLES and not current_user.is_admin:
+        raise HTTPException(
+            status_code=403, detail="You are not authorised to generate reports."
+        )
+
+    try:
+        start = date.fromisoformat(from_date) if from_date else None
+        end = date.fromisoformat(to_date) if to_date else None
+    except ValueError:
+        raise HTTPException(
+            status_code=400, detail="from/to must be dates in YYYY-MM-DD format."
+        )
+
+    query = db.query(Request)
+    if status and status != "all":
+        query = query.filter(Request.status == status)
+    if type and type != "all":
+        query = query.filter(Request.type == type)
+    if start:
+        query = query.filter(
+            Request.closed_at >= datetime.combine(start, datetime.min.time())
+        )
+    if end:
+        query = query.filter(
+            Request.closed_at
+            < datetime.combine(end + timedelta(days=1), datetime.min.time())
+        )
+
+    requests = query.order_by(Request.closed_at).all()
+
+    period_label = (
+        f"{from_date or 'inception'} to {to_date or 'present'} · status: {status}"
+    )
+    pdf_bytes = generate_period_report_pdf(requests, period_label)
+    filename = f"IBEDC-{status}-invoices-{from_date or 'all'}-{to_date or 'all'}.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 
@@ -666,6 +721,7 @@ _EDITABLE_STATUSES = {"draft", "returned"}
 )
 async def add_attachment(
     request_id: str,
+    http_request: HTTPRequest,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -691,7 +747,7 @@ async def add_attachment(
         size=str(result["size"]),
         type=result["content_type"],
         uploaded_at=now,
-        url=f"{_UPLOAD_URL_PREFIX}/{result['path']}",
+        url=f"{get_public_base_url(http_request)}{_UPLOAD_URL_PREFIX}/{result['path']}",
     )
     db.add(att)
     _add_audit(db, request_id, "Attachment Added", current_user, note=att.name)
@@ -727,9 +783,12 @@ def delete_attachment(
     if att is None:
         raise HTTPException(status_code=404, detail="Attachment not found.")
 
-    if att.url and att.url.startswith(_UPLOAD_URL_PREFIX + "/"):
-        rel_path = att.url[len(_UPLOAD_URL_PREFIX) + 1 :]
-        delete_upload(rel_path)
+    if att.url:
+        marker = _UPLOAD_URL_PREFIX + "/"
+        idx = att.url.find(marker)
+        if idx != -1:
+            rel_path = att.url[idx + len(marker) :]
+            delete_upload(rel_path)
 
     _add_audit(db, request_id, "Attachment Deleted", current_user, note=att.name)
     db.delete(att)

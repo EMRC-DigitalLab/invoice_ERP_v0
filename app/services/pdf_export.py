@@ -154,130 +154,148 @@ def generate_request_pdf(
 
     y = _PAGE_H - _MARGIN
 
-    # ── Header band ──────────────────────────────────────────────────────────
+    # ── Header: centered company block, corner reference tag ───────────────
+    header_h = 78
     c.setFillColor(colors.HexColor("#f7faf9"))
-    c.rect(0, y - 50, _PAGE_W, 60, stroke=0, fill=1)
+    c.rect(0, y - header_h + 14, _PAGE_W, header_h, stroke=0, fill=1)
 
+    logo_size = 30
     if os.path.exists(_LOGO_PATH):
         try:
             c.drawImage(
                 ImageReader(_LOGO_PATH),
-                _MARGIN,
-                y - 30,
-                width=34,
-                height=34,
+                _PAGE_W / 2 - logo_size / 2,
+                y - 10,
+                width=logo_size,
+                height=logo_size,
                 preserveAspectRatio=True,
                 mask="auto",
             )
         except Exception:
             pass
 
-    c.setFont(_FONT_BOLD, 15)
+    c.setFont(_FONT_BOLD, 17)
     c.setFillColor(_BRAND)
-    c.drawString(_MARGIN + 42, y - 10, "IBEDC")
-    c.setFont(_FONT_REGULAR, 8.5)
+    c.drawCentredString(_PAGE_W / 2, y - 26, "IBEDC")
+    c.setFont(_FONT_REGULAR, 9)
     c.setFillColor(_SLATE)
-    c.drawString(_MARGIN + 42, y - 23, "Invoice Submitter Form")
+    c.drawCentredString(_PAGE_W / 2, y - 39, "Contractor Invoice Processing Form")
 
-    c.setFont(_FONT_BOLD, 11)
+    # Reference / requester tag, top-right corner
+    c.setFont(_FONT_BOLD, 10.5)
     c.setFillColor(_BRAND)
-    c.drawRightString(_PAGE_W - _MARGIN - 60, y - 10, req.reference or req.id)
+    c.drawRightString(_PAGE_W - _MARGIN - 56, y - 4, req.reference or req.id)
     c.setFont(_FONT_REGULAR, 7.5)
     c.setFillColor(_MUTED)
     c.drawRightString(
-        _PAGE_W - _MARGIN - 60, y - 22, f"Requested by {req.requested_by}"
+        _PAGE_W - _MARGIN - 56, y - 16, f"Requested by {req.requested_by}"
     )
 
     status_color = _STAMP_COLORS.get(req.status, _SLATE)
     _draw_stamp(
         c,
         _PAGE_W - _MARGIN - 24,
-        y - 14,
+        y - 8,
         _STATUS_LABELS.get(req.status, req.status),
         "IBEDC",
         status_color,
         radius=26,
     )
 
-    y -= 62
+    y -= header_h + 4
     c.setStrokeColor(_HAIRLINE)
     c.setLineWidth(0.75)
     c.line(_MARGIN, y, _PAGE_W - _MARGIN, y)
-    y -= 22
+    y -= 20
 
-    # ── Title + amount ───────────────────────────────────────────────────────
-    c.setFont(_FONT_BOLD, 14)
+    # ── Title ────────────────────────────────────────────────────────────────
+    c.setFont(_FONT_BOLD, 13)
     c.setFillColor(_INK)
     c.drawString(_MARGIN, y, req.subject or "")
+    y -= 26
 
+    # ── Open field layout: label above value, italic hint below ────────────
     amount = get_effective_amount(req)
-    c.setFont(_FONT_BOLD, 14)
-    c.drawRightString(_PAGE_W - _MARGIN, y, _fmt_amount(amount, req.currency))
-    y -= 24
+    attachment_names = ", ".join(a.name for a in attachments) if attachments else "—"
 
-    # ── Summary field grid ───────────────────────────────────────────────────
-    fields: list[tuple[str, str]] = [
-        ("Contractor Name", getattr(req, "contractor_name", None) or "—"),
-        ("PO / Contract Number", req.po_number or "—"),
+    fields: list[tuple[str, str, str | None]] = [
+        (
+            "Contractor Name",
+            getattr(req, "contractor_name", None) or "—",
+            "Entities must be in capital letters",
+        ),
+        ("PO / Contract Number", req.po_number or "—", None),
         (
             "Requesting Department",
             req.project_owner_department or req.department or "—",
+            "Select from list",
         ),
-        ("Service Order", getattr(req, "service_order_name", None) or "—"),
-        ("Invoice Number", getattr(req, "invoice_number", None) or "—"),
-        ("Invoice Date", _fmt_date(getattr(req, "invoice_date", None))),
+        ("Service Order", getattr(req, "service_order_name", None) or "—", None),
+        ("Invoice Number", getattr(req, "invoice_number", None) or "—", None),
+        ("Invoice Amount", _fmt_amount(amount, req.currency), None),
+        ("Invoice Date", _fmt_date(getattr(req, "invoice_date", None)), None),
         (
             "Payment Timeframe",
             f"{req.payment_timeframe_days} days"
             if getattr(req, "payment_timeframe_days", None)
             else "—",
+            None,
         ),
         (
             "Payment Option",
             _PAYMENT_OPTION_LABELS.get(getattr(req, "payment_option", None), "—"),
+            "Select from list",
         ),
         (
             "Service Status",
             _SERVICE_STATUS_LABELS.get(getattr(req, "service_status", None), "—"),
+            "Select from list",
         ),
-        ("TIN", getattr(req, "tin", None) or "—"),
+        (
+            "TIN",
+            getattr(req, "tin", None) or "—",
+            "Tax Identification Number (where applicable)",
+        ),
         (
             "Documents Confirmed",
             "Yes" if getattr(req, "documents_confirmed", False) else "No",
+            "Select from list",
         ),
-        ("Requested By", req.requested_by),
-        ("Created", _fmt_date(req.created_at)),
-        ("Attachments", str(len(attachments))),
+        ("Requested By", req.requested_by, None),
+        ("Created", _fmt_date(req.created_at), None),
     ]
 
-    cols = 3
+    cols = 2
     col_w = (_PAGE_W - 2 * _MARGIN) / cols
-    row_h = 30
+    row_h = 34
     rows_used = -(-len(fields) // cols)
 
-    # Faint field-grid rules, evoking a real form rather than a plain list.
-    c.setStrokeColor(_HAIRLINE)
-    c.setLineWidth(0.5)
-    for row_i in range(rows_used + 1):
-        ly = y + 6 - row_i * row_h
-        c.line(_MARGIN, ly, _PAGE_W - _MARGIN, ly)
-    for col_i in range(1, cols):
-        lx = _MARGIN + col_i * col_w
-        c.line(lx, y + 6, lx, y + 6 - rows_used * row_h)
-
-    for i, (label, value) in enumerate(fields):
+    for i, (label, value, hint) in enumerate(fields):
         col = i % cols
         row = i // cols
-        x = _MARGIN + col * col_w + 8
+        x = _MARGIN + col * col_w
         fy = y - row * row_h
         c.setFont(_FONT_REGULAR, 6.5)
         c.setFillColor(_MUTED)
         c.drawString(x, fy, label.upper())
-        c.setFont(_FONT_SEMIBOLD, 9)
+        c.setFont(_FONT_SEMIBOLD, 9.5)
         c.setFillColor(colors.HexColor("#1e293b"))
-        c.drawString(x, fy - 12, str(value)[:40])
+        c.drawString(x, fy - 13, str(value)[:46])
+        if hint:
+            c.setFont("Helvetica-Oblique", 6)
+            c.setFillColor(_MUTED)
+            c.drawString(x, fy - 23, hint)
 
-    y -= rows_used * row_h + 16
+    y -= rows_used * row_h + 10
+
+    # ── Attachments, styled as a link field ─────────────────────────────────
+    c.setFont(_FONT_REGULAR, 6.5)
+    c.setFillColor(_MUTED)
+    c.drawString(_MARGIN, y, "ATTACH INVOICE")
+    c.setFont(_FONT_SEMIBOLD, 8.5)
+    c.setFillColor(colors.HexColor("#2563eb"))
+    c.drawString(_MARGIN, y - 13, attachment_names[:90])
+    y -= 30
 
     # ── Approval trail (stamp boxes) ────────────────────────────────────────
     c.setFont(_FONT_BOLD, 10.5)
@@ -411,6 +429,150 @@ def generate_request_pdf(
     c.setFillColor(_MUTED)
     generated = datetime.now(timezone.utc).strftime("%d %b %Y, %I:%M %p UTC")
     c.drawString(_MARGIN, 22, f"Generated {generated} · IBEDC Invoice ERP")
+
+    c.showPage()
+    c.save()
+    return buf.getvalue()
+
+
+def _draw_report_header(
+    c: canvas.Canvas, period_label: str, generated_at: str
+) -> float:
+    """Draws the report's page header (used on every page) and returns the y to start the table body at."""
+    y = _PAGE_H - _MARGIN
+
+    c.setFillColor(colors.HexColor("#f7faf9"))
+    c.rect(0, y - 42, _PAGE_W, 52, stroke=0, fill=1)
+
+    if os.path.exists(_LOGO_PATH):
+        try:
+            c.drawImage(
+                ImageReader(_LOGO_PATH),
+                _MARGIN,
+                y - 26,
+                width=28,
+                height=28,
+                preserveAspectRatio=True,
+                mask="auto",
+            )
+        except Exception:
+            pass
+
+    c.setFont(_FONT_BOLD, 13)
+    c.setFillColor(_BRAND)
+    c.drawString(_MARGIN + 36, y - 8, "IBEDC · Approved Invoices Report")
+    c.setFont(_FONT_REGULAR, 8)
+    c.setFillColor(_SLATE)
+    c.drawString(_MARGIN + 36, y - 20, period_label)
+
+    c.setFont(_FONT_REGULAR, 7)
+    c.setFillColor(_MUTED)
+    c.drawRightString(_PAGE_W - _MARGIN, y - 8, f"Generated {generated_at}")
+
+    y -= 54
+    c.setStrokeColor(_HAIRLINE)
+    c.setLineWidth(0.75)
+    c.line(_MARGIN, y, _PAGE_W - _MARGIN, y)
+    return y - 14
+
+
+_REPORT_COLUMNS = [
+    ("Reference", 0.16),
+    ("Approved", 0.11),
+    ("Subject / Contractor", 0.29),
+    ("Department", 0.18),
+    ("Requested By", 0.14),
+    ("Amount", 0.12),
+]
+
+
+def _draw_report_table_head(c: canvas.Canvas, y: float) -> float:
+    x = _MARGIN
+    total_w = _PAGE_W - 2 * _MARGIN
+    c.setFont(_FONT_SEMIBOLD, 7)
+    c.setFillColor(_MUTED)
+    for label, frac in _REPORT_COLUMNS:
+        c.drawString(x, y, label.upper())
+        x += total_w * frac
+    y -= 8
+    c.setStrokeColor(_HAIRLINE)
+    c.setLineWidth(0.75)
+    c.line(_MARGIN, y, _PAGE_W - _MARGIN, y)
+    return y - 12
+
+
+def generate_period_report_pdf(requests: list[Request], period_label: str) -> bytes:
+    """
+    A reconciliation report — every request matching the caller's filters (typically
+    status=approved for a given month) as one flowing table, not one PDF per invoice.
+    """
+    buf = BytesIO()
+    c = canvas.Canvas(buf, pagesize=letter)
+    generated_at = datetime.now(timezone.utc).strftime("%d %b %Y, %I:%M %p UTC")
+
+    totals_by_currency: dict[str, float] = {}
+    for req in requests:
+        amt = get_effective_amount(req)
+        totals_by_currency[req.currency] = (
+            totals_by_currency.get(req.currency, 0.0) + amt
+        )
+
+    y = _draw_report_header(c, period_label, generated_at)
+
+    c.setFont(_FONT_BOLD, 9)
+    c.setFillColor(_INK)
+    summary = (
+        f"{len(requests)} request{'s' if len(requests) != 1 else ''} · "
+        + ", ".join(
+            _fmt_amount(total, currency)
+            for currency, total in totals_by_currency.items()
+        )
+        if requests
+        else f"{len(requests)} requests"
+    )
+    c.drawString(_MARGIN, y, summary)
+    y -= 20
+
+    y = _draw_report_table_head(c, y)
+
+    row_h = 26
+    total_w = _PAGE_W - 2 * _MARGIN
+
+    for req in sorted(requests, key=lambda r: r.closed_at or r.updated_at):
+        if y < _MARGIN + row_h:
+            c.showPage()
+            y = _draw_report_header(c, period_label, generated_at)
+            y = _draw_report_table_head(c, y)
+
+        contractor_or_subject = (
+            getattr(req, "contractor_name", None) or req.subject or ""
+        )
+        x = _MARGIN
+
+        cells = [
+            req.reference or req.id,
+            _fmt_date(req.closed_at or req.updated_at),
+            contractor_or_subject[:34],
+            (req.project_owner_department or req.department or "")[:22],
+            req.requested_by[:20],
+            _fmt_amount(get_effective_amount(req), req.currency),
+        ]
+        c.setFont(_FONT_REGULAR, 7.5)
+        c.setFillColor(colors.HexColor("#1e293b"))
+        for (_, frac), value in zip(_REPORT_COLUMNS, cells):
+            c.drawString(x, y, str(value))
+            x += total_w * frac
+
+        y -= 8
+        c.setStrokeColor(colors.HexColor("#f1f5f9"))
+        c.setLineWidth(0.5)
+        c.line(_MARGIN, y, _PAGE_W - _MARGIN, y)
+        y -= row_h - 8
+
+    if not requests:
+        c.setFont(_FONT_REGULAR, 8)
+        c.setFillColor(_MUTED)
+        c.drawString(_MARGIN, y, "No requests match this period.")
 
     c.showPage()
     c.save()
