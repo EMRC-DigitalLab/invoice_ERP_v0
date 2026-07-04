@@ -41,6 +41,9 @@ _STATEMENTS = [
     "ALTER TABLE requests DROP COLUMN IF EXISTS total_project_sum;",
     "ALTER TABLE requests DROP COLUMN IF EXISTS project_kind;",
     "ALTER TABLE approval_steps ADD COLUMN IF NOT EXISTS reservation BOOLEAN;",
+    # E-signature capture was replaced by an automatic name+timestamp record
+    # (already tracked via acted_by_name/acted_at) — no drawn signature needed.
+    "ALTER TABLE approval_steps DROP COLUMN IF EXISTS signature;",
 ]
 
 

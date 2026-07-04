@@ -29,6 +29,7 @@ router = APIRouter(prefix="/requests", tags=["requests"])
 
 ROLE_LABELS: dict[str, str] = {
     "staff": "Staff",
+    "executive_assistant": "Executive Assistant",
     "department_head": "Department Head",
     "regional_department_head": "Regional Department Head",
     "regional_manager": "Regional Manager",
@@ -417,7 +418,7 @@ def submit_request(
         step.acted_by_name = None
         step.acted_at = None
         step.comment = None
-        step.signature = None
+        step.reservation = None
 
     _add_audit(db, req.id, "Submitted for Approval", current_user)
 
@@ -461,11 +462,6 @@ def approve_request(
     )
     is_final = req.current_step_index == total_steps - 1
 
-    if is_final and not payload.signature:
-        raise HTTPException(
-            status_code=400,
-            detail="An e-signature is required for the final approval.",
-        )
     if payload.reservation and not (payload.comment and payload.comment.strip()):
         raise HTTPException(
             status_code=400,
@@ -479,16 +475,9 @@ def approve_request(
     step.acted_at = now
     step.comment = payload.comment
     step.reservation = payload.reservation or None
-    if is_final:
-        step.signature = payload.signature
-
-    audit_note = payload.comment
-    if is_final and payload.signature:
-        sig_line = f"Signed: {payload.signature}"
-        audit_note = f"{sig_line}. {audit_note}" if audit_note else sig_line
 
     audit_action = "Approved (with reservation)" if payload.reservation else "Approved"
-    _add_audit(db, req.id, audit_action, current_user, note=audit_note)
+    _add_audit(db, req.id, audit_action, current_user, note=payload.comment)
 
     if is_final:
         req.status = "approved"

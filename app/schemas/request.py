@@ -19,7 +19,6 @@ class ApprovalStepOut(BaseModel):
     acted_by_name: str | None = None
     acted_at: datetime | None = None
     comment: str | None = None
-    signature: str | None = None
     reservation: bool | None = None
 
 
@@ -170,7 +169,6 @@ class CreateRequestPayload(BaseModel):
 
 class ActionPayload(BaseModel):
     comment: str | None = None
-    signature: str | None = None
     reservation: bool | None = None
 
 

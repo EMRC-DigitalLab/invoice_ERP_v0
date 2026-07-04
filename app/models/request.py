@@ -86,7 +86,6 @@ class ApprovalStep(Base):
     acted_by_name = Column(String, nullable=True)
     acted_at = Column(DateTime(timezone=True), nullable=True)
     comment = Column(String, nullable=True)
-    signature = Column(String, nullable=True)
     reservation = Column(Boolean, nullable=True)
 
 
