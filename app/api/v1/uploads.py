@@ -15,7 +15,9 @@ _UPLOAD_URL_PREFIX = "/api/v1/uploads"
 
 
 @router.post("", response_model=UploadResponse, status_code=201)
-@router.post("/", response_model=UploadResponse, status_code=201, include_in_schema=False)
+@router.post(
+    "/", response_model=UploadResponse, status_code=201, include_in_schema=False
+)
 async def upload_file(
     file: UploadFile = File(...),
     _current_user: User = Depends(get_current_user),
