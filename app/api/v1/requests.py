@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -24,6 +24,7 @@ from app.schemas.request import (
 from app.services.approval_chains import build_chain, get_effective_amount
 from app.services.file_upload import delete_upload, save_upload
 from app.services.org_resolver import resolve_role_to_user
+from app.services.pdf_export import generate_request_pdf
 
 router = APIRouter(prefix="/requests", tags=["requests"])
 
@@ -270,6 +271,54 @@ def get_request(
 ):
     req = _get_or_404(db, request_id)
     return RequestDetailResponse(data=_build_request_out(db, req))
+
+
+@router.get("/{request_id}/pdf")
+def get_request_pdf(
+    request_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    req = _get_or_404(db, request_id)
+    steps = (
+        db.query(ApprovalStep)
+        .filter(ApprovalStep.request_id == req.id)
+        .order_by(ApprovalStep.step_index)
+        .all()
+    )
+    attachments = db.query(Attachment).filter(Attachment.request_id == req.id).all()
+
+    pdf_bytes = generate_request_pdf(req, steps, attachments)
+    filename = f"{req.reference or req.id}.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.delete("/{request_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_request(
+    request_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    req = _get_or_404(db, request_id)
+
+    if req.requested_by_id != current_user.id:
+        raise HTTPException(
+            status_code=403, detail="You cannot delete a request you did not create."
+        )
+    if req.status != "draft":
+        raise HTTPException(
+            status_code=409, detail="Only draft requests can be deleted."
+        )
+
+    db.query(ApprovalStep).filter(ApprovalStep.request_id == request_id).delete()
+    db.query(Attachment).filter(Attachment.request_id == request_id).delete()
+    db.query(AuditEntry).filter(AuditEntry.request_id == request_id).delete()
+    db.delete(req)
+    db.commit()
 
 
 @router.post(
