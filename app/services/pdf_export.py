@@ -10,7 +10,9 @@ from reportlab.pdfgen import canvas
 from app.models.request import ApprovalStep, Attachment, Request
 from app.services.approval_chains import get_effective_amount
 
-_LOGO_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "ibedc-logo.png")
+_LOGO_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(__file__)), "assets", "ibedc-logo.png"
+)
 
 _CURRENCY_SYMBOLS = {"NGN": "₦", "USD": "$", "GBP": "£"}
 _PAYMENT_OPTION_LABELS = {"arrears": "Arrears", "advance": "Advance"}
@@ -126,18 +128,32 @@ def generate_request_pdf(
     fields: list[tuple[str, str]] = [
         ("Contractor Name", getattr(req, "contractor_name", None) or "—"),
         ("PO / Contract Number", req.po_number or "—"),
-        ("Requesting Department", req.project_owner_department or req.department or "—"),
+        (
+            "Requesting Department",
+            req.project_owner_department or req.department or "—",
+        ),
         ("Service Order", getattr(req, "service_order_name", None) or "—"),
         ("Invoice Number", getattr(req, "invoice_number", None) or "—"),
         ("Invoice Date", _fmt_date(getattr(req, "invoice_date", None))),
         (
             "Payment Timeframe",
-            f"{req.payment_timeframe_days} days" if getattr(req, "payment_timeframe_days", None) else "—",
+            f"{req.payment_timeframe_days} days"
+            if getattr(req, "payment_timeframe_days", None)
+            else "—",
         ),
-        ("Payment Option", _PAYMENT_OPTION_LABELS.get(getattr(req, "payment_option", None), "—")),
-        ("Service Status", _SERVICE_STATUS_LABELS.get(getattr(req, "service_status", None), "—")),
+        (
+            "Payment Option",
+            _PAYMENT_OPTION_LABELS.get(getattr(req, "payment_option", None), "—"),
+        ),
+        (
+            "Service Status",
+            _SERVICE_STATUS_LABELS.get(getattr(req, "service_status", None), "—"),
+        ),
         ("TIN", getattr(req, "tin", None) or "—"),
-        ("Documents Confirmed", "Yes" if getattr(req, "documents_confirmed", False) else "No"),
+        (
+            "Documents Confirmed",
+            "Yes" if getattr(req, "documents_confirmed", False) else "No",
+        ),
         ("Requested By", req.requested_by),
         ("Created", _fmt_date(req.created_at)),
         ("Attachments", str(len(attachments))),
@@ -206,7 +222,11 @@ def generate_request_pdf(
         c.drawString(x + pad, by + box_h - 22, _fmt_datetime(step.acted_at))
 
         role_label = _ROLE_LABELS.get(step.role, step.role)
-        decision = "Reservation" if step.reservation else _STATUS_LABELS.get(step.status, step.status)
+        decision = (
+            "Reservation"
+            if step.reservation
+            else _STATUS_LABELS.get(step.status, step.status)
+        )
         c.setFont("Helvetica-Oblique", 6.5)
         c.setFillColor(colors.HexColor("#64748b"))
         c.drawString(x + pad, by + box_h - 32, f"{role_label} · {decision}")
@@ -214,7 +234,9 @@ def generate_request_pdf(
         if step.comment:
             c.setFont("Helvetica", 6.5)
             c.setFillColor(colors.HexColor("#334155"))
-            comment = step.comment if len(step.comment) <= 70 else step.comment[:67] + "..."
+            comment = (
+                step.comment if len(step.comment) <= 70 else step.comment[:67] + "..."
+            )
             c.drawString(x + pad, by + 6, f"Comment: {comment}")
 
     rows_used_steps = -(-len(acted_steps) // box_cols) if acted_steps else 0
@@ -227,7 +249,11 @@ def generate_request_pdf(
         y -= 20
 
     # ── Final decision box ───────────────────────────────────────────────────
-    final_step = acted_steps[-1] if acted_steps and req.status in ("approved", "rejected") else None
+    final_step = (
+        acted_steps[-1]
+        if acted_steps and req.status in ("approved", "rejected")
+        else None
+    )
     if final_step:
         y -= 8
         box_h2 = 56
@@ -251,7 +277,11 @@ def generate_request_pdf(
         if final_step.comment:
             c.setFont("Helvetica", 7.5)
             c.setFillColor(colors.HexColor("#334155"))
-            comment = final_step.comment if len(final_step.comment) <= 110 else final_step.comment[:107] + "..."
+            comment = (
+                final_step.comment
+                if len(final_step.comment) <= 110
+                else final_step.comment[:107] + "..."
+            )
             c.drawString(_MARGIN + 8, y - 50, comment)
 
         y -= box_h2 + 12
