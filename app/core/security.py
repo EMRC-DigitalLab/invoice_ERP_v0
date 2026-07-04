@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 
 import bcrypt
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Query, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
@@ -31,10 +31,11 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None) -> s
     return jwt.encode(payload, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
 
 
-def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(_bearer),
-    db: Session = Depends(get_db),
-) -> User:
+def get_user_from_raw_token(token: str, db: Session) -> User:
+    """
+    Decodes a raw JWT string (not wrapped in an Authorization header) into its User.
+    Used for endpoints reached by <img>/<a> tags, which can't attach custom headers.
+    """
     exc = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Invalid or expired token",
@@ -42,9 +43,7 @@ def get_current_user(
     )
     try:
         payload = jwt.decode(
-            credentials.credentials,
-            settings.JWT_SECRET,
-            algorithms=[settings.JWT_ALGORITHM],
+            token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM]
         )
         user_id: str | None = payload.get("sub")
         if user_id is None:
@@ -56,6 +55,25 @@ def get_current_user(
     if user is None or not user.is_active:
         raise exc
     return user
+
+
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(_bearer),
+    db: Session = Depends(get_db),
+) -> User:
+    return get_user_from_raw_token(credentials.credentials, db)
+
+
+def get_current_user_from_query(
+    token: str = Query(...),
+    db: Session = Depends(get_db),
+) -> User:
+    """
+    Same as get_current_user, but reads the JWT from a `?token=` query param
+    instead of the Authorization header — for routes hit by <img>/<a> tags or
+    direct browser navigation, which can't attach custom headers.
+    """
+    return get_user_from_raw_token(token, db)
 
 
 def get_optional_current_user(

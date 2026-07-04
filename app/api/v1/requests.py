@@ -11,7 +11,6 @@ from fastapi import (
     UploadFile,
     status,
 )
-from fastapi import Request as HTTPRequest
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -35,7 +34,6 @@ from app.services.approval_chains import build_chain, get_effective_amount
 from app.services.file_upload import delete_upload, save_upload
 from app.services.org_resolver import resolve_role_to_user
 from app.services.pdf_export import generate_period_report_pdf, generate_request_pdf
-from app.services.public_url import get_public_base_url
 
 router = APIRouter(prefix="/requests", tags=["requests"])
 
@@ -369,13 +367,9 @@ def delete_request(
 ):
     req = _get_or_404(db, request_id)
 
-    if req.requested_by_id != current_user.id:
+    if req.requested_by_id != current_user.id and not current_user.is_admin:
         raise HTTPException(
             status_code=403, detail="You cannot delete a request you did not create."
-        )
-    if req.status != "draft":
-        raise HTTPException(
-            status_code=409, detail="Only draft requests can be deleted."
         )
 
     db.query(ApprovalStep).filter(ApprovalStep.request_id == request_id).delete()
@@ -721,7 +715,6 @@ _EDITABLE_STATUSES = {"draft", "returned"}
 )
 async def add_attachment(
     request_id: str,
-    http_request: HTTPRequest,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -747,7 +740,7 @@ async def add_attachment(
         size=str(result["size"]),
         type=result["content_type"],
         uploaded_at=now,
-        url=f"{get_public_base_url(http_request)}{_UPLOAD_URL_PREFIX}/{result['path']}",
+        url=f"{_UPLOAD_URL_PREFIX}/{result['path']}",
     )
     db.add(att)
     _add_audit(db, request_id, "Attachment Added", current_user, note=att.name)
@@ -783,12 +776,9 @@ def delete_attachment(
     if att is None:
         raise HTTPException(status_code=404, detail="Attachment not found.")
 
-    if att.url:
-        marker = _UPLOAD_URL_PREFIX + "/"
-        idx = att.url.find(marker)
-        if idx != -1:
-            rel_path = att.url[idx + len(marker) :]
-            delete_upload(rel_path)
+    if att.url and att.url.startswith(_UPLOAD_URL_PREFIX + "/"):
+        rel_path = att.url[len(_UPLOAD_URL_PREFIX) + 1 :]
+        delete_upload(rel_path)
 
     _add_audit(db, request_id, "Attachment Deleted", current_user, note=att.name)
     db.delete(att)

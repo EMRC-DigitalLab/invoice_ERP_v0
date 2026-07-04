@@ -31,12 +31,6 @@ class Settings(BaseSettings):
     UPLOAD_DIR: str = "/var/www/invoice_erp/uploads"
     MAX_UPLOAD_SIZE_MB: int = 10
 
-    # Public origin this API is reached at (e.g. https://v0erpstaging.raven-emrc.com),
-    # used to build absolute file URLs. Set explicitly in .env.staging/.env.production
-    # on the server; if left blank, it's derived from the request's Host/X-Forwarded-Proto
-    # headers instead (works as long as nginx forwards them, which is the default).
-    PUBLIC_BASE_URL: str = ""
-
     # In-app notifications
     NOTIFICATIONS_PAGE_SIZE: int = 20
 

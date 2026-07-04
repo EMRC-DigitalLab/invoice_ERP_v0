@@ -1,14 +1,13 @@
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 
 from app.core.config import settings
-from app.core.security import get_current_user
+from app.core.security import get_current_user, get_current_user_from_query
 from app.models.user import User
 from app.schemas.upload import UploadedFileOut, UploadResponse
 from app.services.file_upload import save_upload
-from app.services.public_url import get_public_base_url
 
 router = APIRouter(prefix="/uploads", tags=["uploads"])
 
@@ -20,14 +19,13 @@ _UPLOAD_URL_PREFIX = "/api/v1/uploads"
     "/", response_model=UploadResponse, status_code=201, include_in_schema=False
 )
 async def upload_file(
-    request: Request,
     file: UploadFile = File(...),
     _current_user: User = Depends(get_current_user),
 ):
     result = await save_upload(file, subfolder="general")
     return UploadResponse(
         data=UploadedFileOut(
-            url=f"{get_public_base_url(request)}{_UPLOAD_URL_PREFIX}/{result['path']}",
+            url=f"{_UPLOAD_URL_PREFIX}/{result['path']}",
             name=file.filename or "file",
             size=str(result["size"]),
             type=result["content_type"],
@@ -38,7 +36,7 @@ async def upload_file(
 @router.get("/{file_path:path}")
 def serve_file(
     file_path: str,
-    _current_user: User = Depends(get_current_user),
+    _current_user: User = Depends(get_current_user_from_query),
 ):
     upload_root = Path(settings.UPLOAD_DIR).resolve()
     full_path = (upload_root / file_path).resolve()

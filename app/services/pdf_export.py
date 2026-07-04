@@ -304,12 +304,17 @@ def generate_request_pdf(
     y -= 16
 
     acted_steps = [s for s in steps if s.acted_by_name]
+    is_final_decision = acted_steps and req.status in ("approved", "rejected")
+    # The last acted step is re-shown below as the Final Approval/Rejection
+    # callout, so leave it out of the trail grid to avoid showing it twice.
+    trail_steps = acted_steps[:-1] if is_final_decision else acted_steps
+
     box_cols = 2
     gap = 10
     box_w = (_PAGE_W - 2 * _MARGIN - gap) / box_cols
     box_h = 48
 
-    for i, step in enumerate(acted_steps):
+    for i, step in enumerate(trail_steps):
         col = i % box_cols
         row = i // box_cols
         x = _MARGIN + col * (box_w + gap)
@@ -357,21 +362,17 @@ def generate_request_pdf(
             )
             c.drawString(x + pad, by + 7, f"“{comment}”")
 
-    rows_used_steps = -(-len(acted_steps) // box_cols) if acted_steps else 0
+    rows_used_steps = -(-len(trail_steps) // box_cols) if trail_steps else 0
     y -= rows_used_steps * (box_h + gap) + 8
 
-    if not acted_steps:
+    if not trail_steps and not is_final_decision:
         c.setFont(_FONT_REGULAR, 8)
         c.setFillColor(_MUTED)
         c.drawString(_MARGIN, y, "No approval action recorded yet.")
         y -= 22
 
     # ── Final decision: name/timestamp + a real ink stamp ───────────────────
-    final_step = (
-        acted_steps[-1]
-        if acted_steps and req.status in ("approved", "rejected")
-        else None
-    )
+    final_step = acted_steps[-1] if is_final_decision else None
     if final_step:
         y -= 10
         box_h2 = 70
@@ -440,40 +441,46 @@ def _draw_report_header(
 ) -> float:
     """Draws the report's page header (used on every page) and returns the y to start the table body at."""
     y = _PAGE_H - _MARGIN
+    header_h = 68
 
     c.setFillColor(colors.HexColor("#f7faf9"))
-    c.rect(0, y - 42, _PAGE_W, 52, stroke=0, fill=1)
+    c.rect(0, y - header_h + 14, _PAGE_W, header_h, stroke=0, fill=1)
 
+    logo_size = 26
     if os.path.exists(_LOGO_PATH):
         try:
             c.drawImage(
                 ImageReader(_LOGO_PATH),
-                _MARGIN,
-                y - 26,
-                width=28,
-                height=28,
+                _PAGE_W / 2 - logo_size / 2,
+                y - 8,
+                width=logo_size,
+                height=logo_size,
                 preserveAspectRatio=True,
                 mask="auto",
             )
         except Exception:
             pass
 
-    c.setFont(_FONT_BOLD, 13)
+    c.setFont(_FONT_BOLD, 15)
     c.setFillColor(_BRAND)
-    c.drawString(_MARGIN + 36, y - 8, "IBEDC · Approved Invoices Report")
-    c.setFont(_FONT_REGULAR, 8)
+    c.drawCentredString(_PAGE_W / 2, y - 22, "IBEDC")
+    c.setFont(_FONT_REGULAR, 8.5)
     c.setFillColor(_SLATE)
-    c.drawString(_MARGIN + 36, y - 20, period_label)
+    c.drawCentredString(_PAGE_W / 2, y - 34, "Approved Invoices Report")
 
+    # Period / generated tag, top-right corner (mirrors the request form's ref tag)
+    c.setFont(_FONT_BOLD, 9.5)
+    c.setFillColor(_BRAND)
+    c.drawRightString(_PAGE_W - _MARGIN, y - 4, period_label)
     c.setFont(_FONT_REGULAR, 7)
     c.setFillColor(_MUTED)
-    c.drawRightString(_PAGE_W - _MARGIN, y - 8, f"Generated {generated_at}")
+    c.drawRightString(_PAGE_W - _MARGIN, y - 15, f"Generated {generated_at}")
 
-    y -= 54
+    y -= header_h + 4
     c.setStrokeColor(_HAIRLINE)
     c.setLineWidth(0.75)
     c.line(_MARGIN, y, _PAGE_W - _MARGIN, y)
-    return y - 14
+    return y - 18
 
 
 _REPORT_COLUMNS = [
