@@ -47,6 +47,14 @@ _STATEMENTS = [
     # Purchase order lookup — the purchase_orders table itself is created by
     # Base.metadata.create_all() (it's a new table); this just links requests to it.
     "ALTER TABLE requests ADD COLUMN IF NOT EXISTS po_id VARCHAR;",
+    # Indexes for the columns list_requests/get_summary filter and sort on —
+    # create_all() only indexes tables at creation time, so existing
+    # deployments need these added explicitly. Names match the ix_<table>_<col>
+    # convention SQLAlchemy would generate for a fresh table.
+    "CREATE INDEX IF NOT EXISTS ix_requests_status ON requests (status);",
+    "CREATE INDEX IF NOT EXISTS ix_requests_type ON requests (type);",
+    "CREATE INDEX IF NOT EXISTS ix_requests_requested_by_id ON requests (requested_by_id);",
+    "CREATE INDEX IF NOT EXISTS ix_requests_created_at ON requests (created_at);",
 ]
 
 

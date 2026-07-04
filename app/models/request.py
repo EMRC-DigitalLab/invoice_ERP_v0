@@ -11,16 +11,16 @@ class Request(Base):
     id = Column(String, primary_key=True)
     reference = Column(String, unique=True, nullable=True, index=True)
     type = Column(
-        String, nullable=False
+        String, nullable=False, index=True
     )  # project_payment | advance | expense | proposal
     subject = Column(String, nullable=False)
     department = Column(String, nullable=False)
     requester_department_id = Column(String, nullable=False)
     requester_region_id = Column(String, nullable=True)
-    status = Column(String, default="draft", nullable=False)
+    status = Column(String, default="draft", nullable=False, index=True)
     currency = Column(String, default="NGN", nullable=False)
     requested_by = Column(String, nullable=False)
-    requested_by_id = Column(String, ForeignKey("users.id"), nullable=False)
+    requested_by_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
     requester_role = Column(String, nullable=False)
     current_step_index = Column(Integer, default=-1, nullable=False)
     payment_reference = Column(String, nullable=True)
@@ -28,6 +28,7 @@ class Request(Base):
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         nullable=False,
+        index=True,
     )
     updated_at = Column(
         DateTime(timezone=True),
