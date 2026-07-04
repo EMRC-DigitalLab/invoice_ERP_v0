@@ -44,6 +44,9 @@ _STATEMENTS = [
     # E-signature capture was replaced by an automatic name+timestamp record
     # (already tracked via acted_by_name/acted_at) — no drawn signature needed.
     "ALTER TABLE approval_steps DROP COLUMN IF EXISTS signature;",
+    # Purchase order lookup — the purchase_orders table itself is created by
+    # Base.metadata.create_all() (it's a new table); this just links requests to it.
+    "ALTER TABLE requests ADD COLUMN IF NOT EXISTS po_id VARCHAR;",
 ]
 
 

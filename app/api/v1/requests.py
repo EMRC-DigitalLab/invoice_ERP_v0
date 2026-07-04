@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.security import get_current_user
 from app.models.org import Department
+from app.models.purchase_order import PurchaseOrder
 from app.models.request import ApprovalStep, Attachment, AuditEntry, Request
 from app.models.user import User
 from app.schemas.request import (
@@ -402,11 +403,19 @@ def create_request(
     amount = get_effective_amount(payload)
     chain_roles = build_chain(payload.type, amount, current_user.role)
 
-    currency = (
-        payload.currency
-        if payload.type == "project_payment" and payload.currency
-        else "NGN"
-    )
+    # Contractor name and currency come from the selected PO, not free-text
+    # entry — staff pick a PO, they don't retype vendor details themselves.
+    po: PurchaseOrder | None = None
+    if payload.type == "project_payment":
+        if not payload.po_id:
+            raise HTTPException(
+                status_code=400, detail="A purchase order must be selected."
+            )
+        po = db.get(PurchaseOrder, payload.po_id)
+        if po is None:
+            raise HTTPException(status_code=400, detail="Unknown purchase order.")
+
+    currency = po.currency if po else "NGN"
 
     # Stamp project_owner_department display name server-side
     proj_owner_dept_name = None
@@ -433,11 +442,12 @@ def create_request(
         created_at=now,
         updated_at=now,
         # project_payment
-        po_number=payload.po_number,
+        po_id=po.id if po else None,
+        po_number=po.po_number if po else None,
         project_owner_department=proj_owner_dept_name,
         project_owner_department_id=payload.project_owner_department_id,
         service_order_name=payload.service_order_name,
-        contractor_name=payload.contractor_name,
+        contractor_name=po.contractor_name if po else None,
         invoice_number=payload.invoice_number,
         invoice_date=payload.invoice_date,
         amount_due=payload.amount_due,

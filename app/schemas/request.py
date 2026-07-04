@@ -71,6 +71,7 @@ class RequestOut(BaseModel):
     audit: list[AuditEntryOut] = []
 
     # project_payment
+    po_id: str | None = None
     po_number: str | None = None
     project_owner_department: str | None = None
     project_owner_department_id: str | None = None
@@ -133,11 +134,11 @@ class CreateRequestPayload(BaseModel):
     type: str
     subject: str
 
-    # project_payment
-    po_number: str | None = None
+    # project_payment — contractor_name/currency aren't accepted here; they're
+    # derived server-side from the selected PO (see po_id).
+    po_id: str | None = None
     project_owner_department_id: str | None = None
     service_order_name: str | None = None
-    contractor_name: str | None = None
     invoice_number: str | None = None
     invoice_date: str | None = None
     amount_due: float | None = None
@@ -146,7 +147,6 @@ class CreateRequestPayload(BaseModel):
     tin: str | None = None
     service_status: str | None = None
     documents_confirmed: bool | None = None
-    currency: str | None = None
 
     # advance
     advance_details: str | None = None
