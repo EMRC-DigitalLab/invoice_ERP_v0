@@ -27,6 +27,10 @@ class Settings(BaseSettings):
     RESEND_API_KEY: str
     RESEND_FROM_EMAIL: str = "invoices@yourdomain.com"
 
+    # Used to build public links (e.g. the clarification-response link emailed
+    # to an external respondent) that point back at the deployed frontend.
+    FRONTEND_URL: str = "http://localhost:3000"
+
     # File uploads — local disk on Hostinger
     UPLOAD_DIR: str = "/var/www/invoice_erp/uploads"
     MAX_UPLOAD_SIZE_MB: int = 10

@@ -70,6 +70,12 @@ _STATEMENTS = [
     "CREATE INDEX IF NOT EXISTS ix_purchase_orders_status ON purchase_orders (status);",
     "CREATE INDEX IF NOT EXISTS ix_purchase_orders_job_type ON purchase_orders (job_type);",
     "CREATE INDEX IF NOT EXISTS ix_requests_po_id ON requests (po_id);",
+    # "Seek Further Clarification" — CFO sends a secure, tokenised link to an
+    # external respondent by email; the clarification_requests table itself is
+    # created by Base.metadata.create_all() (it's a new table), so these just
+    # add the lookup indexes create_all() only sets up at table-creation time.
+    "CREATE INDEX IF NOT EXISTS ix_clarification_requests_request_id ON clarification_requests (request_id);",
+    "CREATE UNIQUE INDEX IF NOT EXISTS ix_clarification_requests_token ON clarification_requests (token);",
 ]
 
 

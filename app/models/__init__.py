@@ -1,3 +1,4 @@
+from app.models.clarification import ClarificationRequest
 from app.models.log import LogAccessKey, RequestLog
 from app.models.org import Department, DepartmentRegionAssignment, OrgSettings, Region
 from app.models.purchase_order import PurchaseOrder
@@ -8,6 +9,7 @@ __all__ = [
     "ApprovalStep",
     "Attachment",
     "AuditEntry",
+    "ClarificationRequest",
     "Department",
     "DepartmentRegionAssignment",
     "LogAccessKey",
