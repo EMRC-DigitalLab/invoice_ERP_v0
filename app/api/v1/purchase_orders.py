@@ -64,6 +64,9 @@ def list_purchase_orders(
     search: str | None = Query(None),
     status: str | None = Query(None),
     job_type: str | None = Query(None),
+    department_id: str | None = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
     _current_user: User = Depends(get_current_user),
 ):
@@ -72,17 +75,31 @@ def list_purchase_orders(
         query = query.filter(PurchaseOrder.status == status)
     if job_type:
         query = query.filter(PurchaseOrder.job_type == job_type)
+    if department_id:
+        query = query.filter(PurchaseOrder.department_id == department_id)
     if search:
         like = f"%{search.strip()}%"
+        matching_dept_ids = [
+            d.id for d in db.query(Department).filter(Department.name.ilike(like)).all()
+        ]
         query = query.filter(
             (PurchaseOrder.po_number.ilike(like))
             | (PurchaseOrder.contractor_name.ilike(like))
+            | (PurchaseOrder.department_id.in_(matching_dept_ids))
         )
 
-    purchase_orders = query.order_by(PurchaseOrder.created_at.desc()).limit(50).all()
+    total = query.count()
+    purchase_orders = (
+        query.order_by(PurchaseOrder.po_number.asc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
     dept_names = {d.id: d.name for d in db.query(Department).all()}
     items = [_to_out(db, po, dept_names) for po in purchase_orders]
-    return PurchaseOrderListResponse(data=items, meta={"total": len(items)})
+    return PurchaseOrderListResponse(
+        data=items, meta={"total": total, "page": page, "pageSize": page_size}
+    )
 
 
 @router.post("", status_code=201, response_model=PurchaseOrderDetailResponse)
