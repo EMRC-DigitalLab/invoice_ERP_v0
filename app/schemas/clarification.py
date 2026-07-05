@@ -15,6 +15,7 @@ class SeekClarificationPayload(BaseModel):
 
     recipient_email: EmailStr
     cc_emails: list[EmailStr] = []
+    note: str | None = None
 
 
 class ClarificationOut(BaseModel):
@@ -24,6 +25,7 @@ class ClarificationOut(BaseModel):
     request_id: str
     recipient_email: str
     cc_emails: list[str] = []
+    note: str | None = None
     status: str
     created_at: datetime
     responded_at: datetime | None = None
@@ -52,6 +54,12 @@ class ClarificationPublicOut(BaseModel):
     request_subject: str
     recipient_email: str
     status: str
+    note: str | None = None
+    contractor_name: str | None = None
+    po_number: str | None = None
+    invoice_number: str | None = None
+    amount_due: float | None = None
+    currency: str | None = None
 
 
 class ClarificationPublicResponse(BaseModel):

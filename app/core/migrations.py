@@ -76,6 +76,9 @@ _STATEMENTS = [
     # add the lookup indexes create_all() only sets up at table-creation time.
     "CREATE INDEX IF NOT EXISTS ix_clarification_requests_request_id ON clarification_requests (request_id);",
     "CREATE UNIQUE INDEX IF NOT EXISTS ix_clarification_requests_token ON clarification_requests (token);",
+    # Optional message the CFO can attach when seeking clarification, added
+    # after clarification_requests already existed in some environments.
+    "ALTER TABLE clarification_requests ADD COLUMN IF NOT EXISTS note VARCHAR;",
 ]
 
 

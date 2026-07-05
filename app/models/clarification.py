@@ -17,6 +17,7 @@ class ClarificationRequest(Base):
     requested_by_id = Column(String, ForeignKey("users.id"), nullable=False)
     recipient_email = Column(String, nullable=False)
     cc_emails = Column(String, nullable=True)  # comma-separated
+    note = Column(String, nullable=True)
     status = Column(String, default="pending", nullable=False)  # pending | responded
     created_at = Column(
         DateTime(timezone=True),

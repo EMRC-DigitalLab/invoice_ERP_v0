@@ -772,6 +772,7 @@ def seek_clarification(
         requested_by_id=current_user.id,
         recipient_email=str(payload.recipient_email),
         cc_emails=",".join(str(e) for e in payload.cc_emails),
+        note=payload.note,
         status="pending",
         created_at=datetime.now(timezone.utc),
     )
@@ -783,7 +784,8 @@ def seek_clarification(
         "Sought further clarification",
         current_user,
         note=f"Emailed {clarification.recipient_email}"
-        + (f" (cc: {clarification.cc_emails})" if clarification.cc_emails else ""),
+        + (f" (cc: {clarification.cc_emails})" if clarification.cc_emails else "")
+        + (f" — {payload.note}" if payload.note else ""),
     )
     db.commit()
     db.refresh(clarification)
@@ -797,6 +799,12 @@ def seek_clarification(
             request_reference=req.reference or req.id,
             request_subject=req.subject,
             link=link,
+            contractor_name=req.contractor_name,
+            po_number=req.po_number,
+            invoice_number=req.invoice_number,
+            amount_due=req.amount_due,
+            currency=req.currency,
+            note=payload.note,
         )
     except Exception as exc:  # noqa: BLE001 — don't let an email outage lose the saved request
         raise HTTPException(
@@ -839,6 +847,12 @@ def get_public_clarification(token: str, db: Session = Depends(get_db)):
             request_subject=req.subject if req else "",
             recipient_email=clarification.recipient_email,
             status=clarification.status,
+            note=clarification.note,
+            contractor_name=req.contractor_name if req else None,
+            po_number=req.po_number if req else None,
+            invoice_number=req.invoice_number if req else None,
+            amount_due=req.amount_due if req else None,
+            currency=req.currency if req else None,
         )
     )
 
