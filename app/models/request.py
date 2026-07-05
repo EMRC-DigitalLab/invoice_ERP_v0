@@ -42,6 +42,8 @@ class Request(Base):
     # project_payment fields — per the CFO's 2026-07 review call, renamed
     # "Invoice Submitter Form"; vendor bank/account fields removed (sourced
     # from procurement's own PO records, not staff-entered here).
+    job_type = Column(String, nullable=True)  # work | service
+    description = Column(String, nullable=True)
     po_id = Column(String, ForeignKey("purchase_orders.id"), nullable=True)
     po_number = Column(String, nullable=True)
     project_owner_department = Column(String, nullable=True)

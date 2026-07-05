@@ -50,6 +50,8 @@ def _to_out(
         department_name=dept_names.get(po.department_id),
         description=po.description,
         date_issued=po.date_issued,
+        job_type=po.job_type,
+        contractor_address=po.contractor_address,
         status=po.status,
         amount_committed=committed,
         amount_remaining=max(po.contract_amount - committed, 0.0),
@@ -61,12 +63,15 @@ def _to_out(
 def list_purchase_orders(
     search: str | None = Query(None),
     status: str | None = Query(None),
+    job_type: str | None = Query(None),
     db: Session = Depends(get_db),
     _current_user: User = Depends(get_current_user),
 ):
     query = db.query(PurchaseOrder)
     if status and status != "all":
         query = query.filter(PurchaseOrder.status == status)
+    if job_type:
+        query = query.filter(PurchaseOrder.job_type == job_type)
     if search:
         like = f"%{search.strip()}%"
         query = query.filter(
@@ -108,6 +113,8 @@ def create_purchase_order(
         department_id=payload.department_id,
         description=payload.description,
         date_issued=payload.date_issued,
+        job_type=payload.job_type,
+        contractor_address=payload.contractor_address,
         status=payload.status,
         created_by_id=current_user.id,
         created_at=datetime.now(timezone.utc),
@@ -145,9 +152,11 @@ def export_purchase_orders_csv(
         [
             "PO Number",
             "Contractor Name",
+            "Contractor Address",
             "Contract Amount",
             "Currency",
             "Department",
+            "Job Type",
             "Description",
             "Date Issued",
             "Status",
@@ -162,9 +171,11 @@ def export_purchase_orders_csv(
             [
                 po.po_number,
                 po.contractor_name,
+                po.contractor_address or "",
                 po.contract_amount,
                 po.currency,
                 dept_names.get(po.department_id, po.department_id),
+                po.job_type or "",
                 po.description or "",
                 po.date_issued or "",
                 po.status,
@@ -347,6 +358,10 @@ def update_purchase_order(
         po.description = payload.description
     if payload.date_issued is not None:
         po.date_issued = payload.date_issued
+    if payload.job_type is not None:
+        po.job_type = payload.job_type
+    if payload.contractor_address is not None:
+        po.contractor_address = payload.contractor_address
     if payload.status is not None:
         po.status = payload.status
 

@@ -22,6 +22,8 @@ class PurchaseOrderOut(BaseModel):
     department_name: str | None = None
     description: str | None = None
     date_issued: str | None = None
+    job_type: str | None = None
+    contractor_address: str | None = None
     status: str
     amount_committed: float = 0
     amount_remaining: float = 0
@@ -47,6 +49,8 @@ class CreatePurchaseOrderPayload(BaseModel):
     department_id: str
     description: str | None = None
     date_issued: str | None = None
+    job_type: str | None = None
+    contractor_address: str | None = None
     status: str = "active"
 
 
@@ -60,6 +64,8 @@ class UpdatePurchaseOrderPayload(BaseModel):
     department_id: str | None = None
     description: str | None = None
     date_issued: str | None = None
+    job_type: str | None = None
+    contractor_address: str | None = None
     status: str | None = None
 
 

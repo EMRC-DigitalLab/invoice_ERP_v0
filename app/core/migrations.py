@@ -55,6 +55,14 @@ _STATEMENTS = [
     "CREATE INDEX IF NOT EXISTS ix_requests_type ON requests (type);",
     "CREATE INDEX IF NOT EXISTS ix_requests_requested_by_id ON requests (requested_by_id);",
     "CREATE INDEX IF NOT EXISTS ix_requests_created_at ON requests (created_at);",
+    # Job Type (Work/Service) + a free-text Description, added to the Invoice
+    # Submitter Form alongside the existing Subject/"Invoice-Service Title".
+    "ALTER TABLE requests ADD COLUMN IF NOT EXISTS job_type VARCHAR;",
+    "ALTER TABLE requests ADD COLUMN IF NOT EXISTS description VARCHAR;",
+    # Same Job Type field, plus the contractor's address, captured on the PO
+    # itself so it doesn't need re-entering on every request against it.
+    "ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS job_type VARCHAR;",
+    "ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS contractor_address VARCHAR;",
 ]
 
 

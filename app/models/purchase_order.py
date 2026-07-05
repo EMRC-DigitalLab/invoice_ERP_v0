@@ -16,6 +16,8 @@ class PurchaseOrder(Base):
     department_id = Column(String, ForeignKey("departments.id"), nullable=False)
     description = Column(String, nullable=True)
     date_issued = Column(String, nullable=True)
+    job_type = Column(String, nullable=True)  # work | service
+    contractor_address = Column(String, nullable=True)
     status = Column(String, default="active", nullable=False)  # active | closed
     created_by_id = Column(String, ForeignKey("users.id"), nullable=True)
     created_at = Column(

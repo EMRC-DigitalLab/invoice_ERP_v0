@@ -34,10 +34,12 @@ class Settings(BaseSettings):
     # In-app notifications
     NOTIFICATIONS_PAGE_SIZE: int = 20
 
-    # JWT auth
+    # JWT auth — short-lived access token, longer-lived refresh token that
+    # exchanges for a new access token via POST /auth/refresh.
     JWT_SECRET: str
     JWT_ALGORITHM: str = "HS256"
-    JWT_EXPIRE_MINUTES: int = 1440  # 24 hours
+    JWT_EXPIRE_MINUTES: int = 30
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 30
 
     class Config:
         env_file = (

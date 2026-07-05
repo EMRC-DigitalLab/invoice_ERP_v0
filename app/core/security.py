@@ -28,6 +28,16 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None) -> s
         expires_delta or timedelta(minutes=settings.JWT_EXPIRE_MINUTES)
     )
     payload["exp"] = expire
+    payload["type"] = "access"
+    return jwt.encode(payload, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
+
+
+def create_refresh_token(data: dict) -> str:
+    payload = data.copy()
+    payload["exp"] = datetime.now(timezone.utc) + timedelta(
+        days=settings.REFRESH_TOKEN_EXPIRE_DAYS
+    )
+    payload["type"] = "refresh"
     return jwt.encode(payload, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
 
 
@@ -35,6 +45,7 @@ def get_user_from_raw_token(token: str, db: Session) -> User:
     """
     Decodes a raw JWT string (not wrapped in an Authorization header) into its User.
     Used for endpoints reached by <img>/<a> tags, which can't attach custom headers.
+    Rejects refresh tokens — only an access token may authenticate a request.
     """
     exc = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -45,6 +56,34 @@ def get_user_from_raw_token(token: str, db: Session) -> User:
         payload = jwt.decode(
             token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM]
         )
+        # Tokens issued before this field existed have no "type" — treat those
+        # as access tokens too so existing sessions aren't logged out on deploy.
+        if payload.get("type", "access") != "access":
+            raise exc
+        user_id: str | None = payload.get("sub")
+        if user_id is None:
+            raise exc
+    except JWTError:
+        raise exc
+
+    user = db.get(User, user_id)
+    if user is None or not user.is_active:
+        raise exc
+    return user
+
+
+def get_user_from_refresh_token(token: str, db: Session) -> User:
+    """Decodes a refresh token (POST /auth/refresh only) into its User."""
+    exc = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Invalid or expired refresh token",
+    )
+    try:
+        payload = jwt.decode(
+            token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM]
+        )
+        if payload.get("type") != "refresh":
+            raise exc
         user_id: str | None = payload.get("sub")
         if user_id is None:
             raise exc

@@ -454,6 +454,8 @@ def create_request(
         created_at=now,
         updated_at=now,
         # project_payment
+        job_type=payload.job_type,
+        description=payload.description,
         po_id=po.id if po else None,
         po_number=po.po_number if po else None,
         project_owner_department=proj_owner_dept_name,
