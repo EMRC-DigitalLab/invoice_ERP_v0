@@ -230,7 +230,6 @@ def generate_request_pdf(
             req.project_owner_department or req.department or "—",
             "Select from list",
         ),
-        ("Service Order", getattr(req, "service_order_name", None) or "—", None),
         ("Invoice Number", getattr(req, "invoice_number", None) or "—", None),
         ("Invoice Amount", _fmt_amount(amount, req.currency), None),
         ("Invoice Date", _fmt_date(getattr(req, "invoice_date", None)), None),

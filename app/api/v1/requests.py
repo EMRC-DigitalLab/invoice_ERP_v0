@@ -894,6 +894,11 @@ async def respond_to_clarification(
 
     req = db.get(Request, clarification.request_id)
     if req is not None:
+        note = clarification.clarification_text
+        # Marker parsed by the frontend audit log to render a "View attachment"
+        # link — kept out of the visible note text.
+        if clarification.attachment_url:
+            note = f"{note}\n[attachment:{clarification.attachment_url}]"
         db.add(
             AuditEntry(
                 id=uuid.uuid4().hex,
@@ -903,7 +908,7 @@ async def respond_to_clarification(
                 actor_id=None,
                 role=clarification.respondent_position,
                 timestamp=datetime.now(timezone.utc),
-                note=clarification.clarification_text,
+                note=note,
             )
         )
 
@@ -916,7 +921,11 @@ async def respond_to_clarification(
             send_clarification_received_email(
                 to=requester.email,
                 respondent_name=clarification.respondent_name,
+                respondent_position=clarification.respondent_position,
+                clarification_text=clarification.clarification_text,
+                attachment_name=clarification.attachment_name,
                 request_reference=req.reference or req.id,
+                request_subject=req.subject,
                 app_link=f"{settings.FRONTEND_URL}/dashboard/invoices/{req.id}",
             )
         except Exception:  # noqa: BLE001 — the response is already saved; don't fail the request over a notification email
