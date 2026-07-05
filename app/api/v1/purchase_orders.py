@@ -74,10 +74,12 @@ def list_purchase_orders(
     if status and status != "all":
         query = query.filter(PurchaseOrder.status == status)
     if job_type:
-        # POs created before Job Type existed on this form have no value set —
-        # treat those as matching any filter instead of hiding them outright.
+        # Historical data has inconsistent casing (Work/work/Service) — compare
+        # case-insensitively. POs with no value set are treated as matching any
+        # filter instead of being hidden outright.
         query = query.filter(
-            (PurchaseOrder.job_type == job_type) | (PurchaseOrder.job_type.is_(None))
+            (PurchaseOrder.job_type.ilike(job_type))
+            | (PurchaseOrder.job_type.is_(None))
         )
     if department_id:
         query = query.filter(PurchaseOrder.department_id == department_id)
