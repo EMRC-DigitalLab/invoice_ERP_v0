@@ -63,6 +63,13 @@ _STATEMENTS = [
     # itself so it doesn't need re-entering on every request against it.
     "ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS job_type VARCHAR;",
     "ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS contractor_address VARCHAR;",
+    # Indexes for PO list/CSV-export filters and, more importantly, for
+    # committed_amount_for_po() — it filters requests.po_id once per PO row
+    # shown, so an unindexed po_id turns every PO list/export into N table
+    # scans of requests as either table grows.
+    "CREATE INDEX IF NOT EXISTS ix_purchase_orders_status ON purchase_orders (status);",
+    "CREATE INDEX IF NOT EXISTS ix_purchase_orders_job_type ON purchase_orders (job_type);",
+    "CREATE INDEX IF NOT EXISTS ix_requests_po_id ON requests (po_id);",
 ]
 
 
