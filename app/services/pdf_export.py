@@ -283,7 +283,11 @@ def generate_request_pdf(
     c.drawCentredString(_PAGE_W / 2, y - 26, "IBEDC")
     c.setFont(_FONT_REGULAR, 9)
     c.setFillColor(_SLATE)
-    c.drawCentredString(_PAGE_W / 2, y - 39, "Contractor Invoice Processing Form")
+    c.drawCentredString(
+        _PAGE_W / 2,
+        y - 39,
+        _REQUEST_TYPE_TITLES.get(req.type, "Request Form"),
+    )
 
     # Reference / requester tag, top-right corner
     c.setFont(_FONT_BOLD, 10.5)
