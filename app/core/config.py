@@ -27,6 +27,10 @@ class Settings(BaseSettings):
     RESEND_API_KEY: str
     RESEND_FROM_EMAIL: str = "invoices@yourdomain.com"
 
+    # Used to build public links (e.g. the clarification-response link emailed
+    # to an external respondent) that point back at the deployed frontend.
+    FRONTEND_URL: str = "http://localhost:3000"
+
     # File uploads — local disk on Hostinger
     UPLOAD_DIR: str = "/var/www/invoice_erp/uploads"
     MAX_UPLOAD_SIZE_MB: int = 10
@@ -34,10 +38,12 @@ class Settings(BaseSettings):
     # In-app notifications
     NOTIFICATIONS_PAGE_SIZE: int = 20
 
-    # JWT auth
+    # JWT auth — short-lived access token, longer-lived refresh token that
+    # exchanges for a new access token via POST /auth/refresh.
     JWT_SECRET: str
     JWT_ALGORITHM: str = "HS256"
-    JWT_EXPIRE_MINUTES: int = 1440  # 24 hours
+    JWT_EXPIRE_MINUTES: int = 30
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 30
 
     class Config:
         env_file = (

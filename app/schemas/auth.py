@@ -7,6 +7,12 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class RefreshRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
+
+    refresh_token: str
+
+
 class UserOut(BaseModel):
     model_config = ConfigDict(
         from_attributes=True,
@@ -26,8 +32,11 @@ class UserOut(BaseModel):
 
 
 class AuthData(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
+
     user: UserOut
     token: str
+    refresh_token: str
 
 
 class LoginResponse(BaseModel):

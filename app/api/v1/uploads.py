@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 
 from app.core.config import settings
-from app.core.security import get_current_user
+from app.core.security import get_current_user, get_current_user_from_query
 from app.models.user import User
 from app.schemas.upload import UploadedFileOut, UploadResponse
 from app.services.file_upload import save_upload
@@ -15,6 +15,9 @@ _UPLOAD_URL_PREFIX = "/api/v1/uploads"
 
 
 @router.post("", response_model=UploadResponse, status_code=201)
+@router.post(
+    "/", response_model=UploadResponse, status_code=201, include_in_schema=False
+)
 async def upload_file(
     file: UploadFile = File(...),
     _current_user: User = Depends(get_current_user),
@@ -33,7 +36,7 @@ async def upload_file(
 @router.get("/{file_path:path}")
 def serve_file(
     file_path: str,
-    _current_user: User = Depends(get_current_user),
+    _current_user: User = Depends(get_current_user_from_query),
 ):
     upload_root = Path(settings.UPLOAD_DIR).resolve()
     full_path = (upload_root / file_path).resolve()

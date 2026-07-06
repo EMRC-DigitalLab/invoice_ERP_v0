@@ -19,7 +19,8 @@ class ApprovalStepOut(BaseModel):
     acted_by_name: str | None = None
     acted_at: datetime | None = None
     comment: str | None = None
-    signature: str | None = None
+    reservation: bool | None = None
+    assigned_user_id: str | None = None
 
 
 class AttachmentOut(BaseModel):
@@ -71,17 +72,22 @@ class RequestOut(BaseModel):
     audit: list[AuditEntryOut] = []
 
     # project_payment
+    job_type: str | None = None
+    description: str | None = None
+    po_id: str | None = None
     po_number: str | None = None
     project_owner_department: str | None = None
     project_owner_department_id: str | None = None
-    project_start_date: str | None = None
-    total_project_sum: float | None = None
-    project_kind: str | None = None
+    service_order_name: str | None = None
+    contractor_name: str | None = None
+    invoice_number: str | None = None
+    invoice_date: str | None = None
     amount_due: float | None = None
-    vendor_name: str | None = None
-    vendor_bank_name: str | None = None
-    vendor_account_name: str | None = None
-    vendor_account_no: str | None = None
+    payment_timeframe_days: int | None = None
+    payment_option: str | None = None
+    tin: str | None = None
+    service_status: str | None = None
+    documents_confirmed: bool | None = None
 
     # advance
     advance_details: str | None = None
@@ -131,17 +137,21 @@ class CreateRequestPayload(BaseModel):
     type: str
     subject: str
 
-    # project_payment
-    po_number: str | None = None
+    # project_payment — contractor_name/currency aren't accepted here; they're
+    # derived server-side from the selected PO (see po_id).
+    job_type: str | None = None
+    description: str | None = None
+    po_id: str | None = None
     project_owner_department_id: str | None = None
-    project_start_date: str | None = None
-    total_project_sum: float | None = None
-    project_kind: str | None = None
+    service_order_name: str | None = None
+    invoice_number: str | None = None
+    invoice_date: str | None = None
     amount_due: float | None = None
-    vendor_name: str | None = None
-    vendor_bank_name: str | None = None
-    vendor_account_name: str | None = None
-    vendor_account_no: str | None = None
+    payment_timeframe_days: int | None = None
+    payment_option: str | None = None
+    tin: str | None = None
+    service_status: str | None = None
+    documents_confirmed: bool | None = None
 
     # advance
     advance_details: str | None = None
@@ -164,13 +174,20 @@ class CreateRequestPayload(BaseModel):
 
 class ActionPayload(BaseModel):
     comment: str | None = None
-    signature: str | None = None
+    reservation: bool | None = None
 
 
 class ClosePayload(BaseModel):
     model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
 
     payment_reference: str
+
+
+class ForwardPayload(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
+
+    to_user_id: str
+    comment: str | None = None
 
 
 # ── Summary response ───────────────────────────────────────────────────────────
