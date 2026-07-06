@@ -45,6 +45,7 @@ class OrgSettingsOut(BaseModel):
     finance_control_user_id: str | None = None
     procurement_user_id: str | None = None
     cfo_user_id: str | None = None
+    md_user_id: str | None = None
 
 
 # ── Input schemas ──────────────────────────────────────────────────────────────
@@ -57,7 +58,7 @@ class OnboardStaffPayload(BaseModel):
     email: str
     role: str
     title: str
-    department_id: str
+    department_id: str | None = None
     region_id: str | None = None
     is_admin: bool = False
 
@@ -119,6 +120,7 @@ class UpdateOrgSettings(BaseModel):
     finance_control_user_id: str | None = None
     procurement_user_id: str | None = None
     cfo_user_id: str | None = None
+    md_user_id: str | None = None
 
 
 # ── Response envelope schemas ──────────────────────────────────────────────────

@@ -75,9 +75,13 @@ def onboard_staff(
             status_code=409, detail="A staff member with this email already exists."
         )
 
-    dept = db.get(Department, payload.department_id)
-    if dept is None:
-        raise HTTPException(status_code=400, detail="Department not found.")
+    # Org-wide singular seats (CFO, MD, etc.) often aren't tied to a department.
+    dept_name = "—"
+    if payload.department_id:
+        dept = db.get(Department, payload.department_id)
+        if dept is None:
+            raise HTTPException(status_code=400, detail="Department not found.")
+        dept_name = dept.name
 
     temp_password = secrets.token_urlsafe(12)
     user = User(
@@ -87,9 +91,9 @@ def onboard_staff(
         password_hash=get_password_hash(temp_password),
         role=payload.role,
         title=payload.title,
-        department=dept.name,
-        department_id=payload.department_id,
-        region_id=payload.region_id,
+        department=dept_name,
+        department_id=payload.department_id or None,
+        region_id=payload.region_id or None,
         is_admin=payload.is_admin,
         is_active=True,
         created_at=datetime.now(timezone.utc),
@@ -132,11 +136,21 @@ def update_staff(
     if "name" in updates:
         updates["name"] = updates["name"].strip()
 
+    if "region_id" in updates:
+        # "" from the "No region" option means clear the seat — storing "" against
+        # a foreign key (instead of NULL) would violate the FK constraint.
+        updates["region_id"] = updates["region_id"] or None
+
     if "department_id" in updates:
-        dept = db.get(Department, updates["department_id"])
-        if dept is None:
-            raise HTTPException(status_code=400, detail="Department not found.")
-        user.department = dept.name
+        updates["department_id"] = updates["department_id"] or None
+        if updates["department_id"]:
+            dept = db.get(Department, updates["department_id"])
+            if dept is None:
+                raise HTTPException(status_code=400, detail="Department not found.")
+            user.department = dept.name
+        else:
+            # Org-wide singular seats (CFO, MD, etc.) aren't tied to a department.
+            user.department = "—"
 
     for field, value in updates.items():
         setattr(user, field, value)

@@ -83,6 +83,9 @@ _STATEMENTS = [
     # MD) as an extra approval step ahead of them, instead of just role-based
     # resolution.
     "ALTER TABLE approval_steps ADD COLUMN IF NOT EXISTS assigned_user_id VARCHAR;",
+    # MD is now a proper org-wide singular seat (like CFO/Finance Controller),
+    # resolved the same way rather than only reachable via ad-hoc "Forward".
+    "ALTER TABLE org_settings ADD COLUMN IF NOT EXISTS md_user_id VARCHAR;",
 ]
 
 
