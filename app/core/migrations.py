@@ -79,6 +79,10 @@ _STATEMENTS = [
     # Optional message the CFO can attach when seeking clarification, added
     # after clarification_requests already existed in some environments.
     "ALTER TABLE clarification_requests ADD COLUMN IF NOT EXISTS note VARCHAR;",
+    # "Forward" — the CFO can route a request to a specific person (e.g. the
+    # MD) as an extra approval step ahead of them, instead of just role-based
+    # resolution.
+    "ALTER TABLE approval_steps ADD COLUMN IF NOT EXISTS assigned_user_id VARCHAR;",
 ]
 
 

@@ -20,6 +20,7 @@ class ApprovalStepOut(BaseModel):
     acted_at: datetime | None = None
     comment: str | None = None
     reservation: bool | None = None
+    assigned_user_id: str | None = None
 
 
 class AttachmentOut(BaseModel):
@@ -180,6 +181,13 @@ class ClosePayload(BaseModel):
     model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
 
     payment_reference: str
+
+
+class ForwardPayload(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
+
+    to_user_id: str
+    comment: str | None = None
 
 
 # ── Summary response ───────────────────────────────────────────────────────────

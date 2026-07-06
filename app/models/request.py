@@ -85,12 +85,15 @@ class ApprovalStep(Base):
     role = Column(String, nullable=False)
     status = Column(
         String, default="pending", nullable=False
-    )  # pending|approved|returned|rejected|skipped
+    )  # pending|approved|returned|rejected|skipped|forwarded
     acted_by = Column(String, nullable=True)
     acted_by_name = Column(String, nullable=True)
     acted_at = Column(DateTime(timezone=True), nullable=True)
     comment = Column(String, nullable=True)
     reservation = Column(Boolean, nullable=True)
+    # Set when this step was created via "Forward" — pins the step to one
+    # specific person instead of resolving `role` through department/region.
+    assigned_user_id = Column(String, ForeignKey("users.id"), nullable=True)
 
 
 class Attachment(Base):

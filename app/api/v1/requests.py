@@ -37,6 +37,7 @@ from app.schemas.request import (
     AttachmentOut,
     ClosePayload,
     CreateRequestPayload,
+    ForwardPayload,
     RequestDetailResponse,
     RequestListResponse,
     RequestOut,
@@ -129,6 +130,20 @@ def _add_audit(
     )
 
 
+def _resolve_step_user(db: Session, req: Request, step: ApprovalStep) -> str | None:
+    """A "Forward"-created step is pinned to one specific person; otherwise
+    resolve the role through the requester's department/region as usual."""
+    if step.assigned_user_id:
+        return step.assigned_user_id
+    return resolve_role_to_user(
+        role=step.role,
+        db=db,
+        requester_dept_id=req.requester_department_id,
+        requester_region_id=req.requester_region_id,
+        project_owner_dept_id=req.project_owner_department_id,
+    )
+
+
 def _is_pending_for(db: Session, req: Request, user: User) -> bool:
     """True when this in_review request's current step resolves to user."""
     if req.status != "in_review" or req.current_step_index < 0:
@@ -143,13 +158,7 @@ def _is_pending_for(db: Session, req: Request, user: User) -> bool:
     )
     if step is None:
         return False
-    resolved = resolve_role_to_user(
-        role=step.role,
-        db=db,
-        requester_dept_id=req.requester_department_id,
-        requester_region_id=req.requester_region_id,
-        project_owner_dept_id=req.project_owner_department_id,
-    )
+    resolved = _resolve_step_user(db, req, step)
     if resolved == user.id:
         return True
     # Fallback: if seat unassigned, any user holding that role can act
@@ -178,13 +187,7 @@ def _check_approver(db: Session, req: Request, user: User) -> ApprovalStep:
     if step is None:
         raise HTTPException(status_code=409, detail="No active approval step found.")
 
-    resolved = resolve_role_to_user(
-        role=step.role,
-        db=db,
-        requester_dept_id=req.requester_department_id,
-        requester_region_id=req.requester_region_id,
-        project_owner_dept_id=req.project_owner_department_id,
-    )
+    resolved = _resolve_step_user(db, req, step)
     if resolved is not None and resolved != user.id:
         raise HTTPException(
             status_code=403, detail="You are not the expected approver for this step."
@@ -633,6 +636,75 @@ def approve_request(
         req.current_step_index += 1
 
     req.updated_at = now
+    db.commit()
+    db.refresh(req)
+    return RequestDetailResponse(data=_build_request_out(db, req))
+
+
+@router.post("/{request_id}/forward", response_model=RequestDetailResponse)
+def forward_request(
+    request_id: str,
+    payload: ForwardPayload,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Routes the request to a specific person (e.g. the MD) as an extra
+    approval step ahead of the current approver, instead of approving/rejecting."""
+    req = _get_or_404(db, request_id)
+    step = _check_approver(db, req, current_user)
+
+    target_user = db.get(User, payload.to_user_id)
+    if target_user is None:
+        raise HTTPException(status_code=404, detail="Selected user not found.")
+    if target_user.id == current_user.id:
+        raise HTTPException(
+            status_code=400, detail="You can't forward a request to yourself."
+        )
+
+    now = datetime.now(timezone.utc)
+
+    # Make room for the new step right after the current one.
+    later_steps = (
+        db.query(ApprovalStep)
+        .filter(
+            ApprovalStep.request_id == req.id,
+            ApprovalStep.step_index > step.step_index,
+        )
+        .order_by(ApprovalStep.step_index.desc())
+        .all()
+    )
+    for later in later_steps:
+        later.step_index += 1
+
+    db.add(
+        ApprovalStep(
+            id=uuid.uuid4().hex,
+            request_id=req.id,
+            step_index=step.step_index + 1,
+            role=target_user.role,
+            status="pending",
+            assigned_user_id=target_user.id,
+        )
+    )
+
+    step.status = "forwarded"
+    step.acted_by = current_user.id
+    step.acted_by_name = current_user.name
+    step.acted_at = now
+    step.comment = payload.comment
+
+    req.current_step_index = step.step_index + 1
+    req.updated_at = now
+
+    _add_audit(
+        db,
+        req.id,
+        "Forwarded",
+        current_user,
+        note=f"Forwarded to {target_user.name} ({ROLE_LABELS.get(target_user.role, target_user.role)})"
+        + (f" — {payload.comment}" if payload.comment else ""),
+    )
+
     db.commit()
     db.refresh(req)
     return RequestDetailResponse(data=_build_request_out(db, req))
