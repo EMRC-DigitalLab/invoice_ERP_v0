@@ -186,6 +186,10 @@ jobs:
 
             mkdir -p /opt/invoice_erp/staging
             mkdir -p ${UPLOAD_DIR}
+            # The container runs as a non-root user (see Dockerfile's `USER app`),
+            # but this dir is created by the SSH deploy user (root) — without this,
+            # every upload 500s with "Permission denied" inside the container.
+            chmod -R 777 ${UPLOAD_DIR}
 
             cat > /opt/invoice_erp/staging/.env << EOF
             ENV=staging
@@ -255,6 +259,10 @@ jobs:
 
             mkdir -p /opt/invoice_erp/production
             mkdir -p ${UPLOAD_DIR}
+            # The container runs as a non-root user (see Dockerfile's `USER app`),
+            # but this dir is created by the SSH deploy user (root) — without this,
+            # every upload 500s with "Permission denied" inside the container.
+            chmod -R 777 ${UPLOAD_DIR}
 
             cat > /opt/invoice_erp/production/.env << EOF
             ENV=production
