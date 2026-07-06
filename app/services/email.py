@@ -111,7 +111,7 @@ def send_invoice_email(to: str, invoice_number: str, pdf_url: str) -> dict:
 def send_welcome_email(
     to: str,
     name: str,
-    temporary_password: str,
+    initial_password: str,
     login_link: str,
 ) -> dict:
     credentials_block = (
@@ -120,8 +120,8 @@ def send_welcome_email(
         f'<tr><td style="padding:14px 16px;">'
         f'<p style="margin:0 0 8px;font-size:13px;color:{_MUTED};">Email</p>'
         f'<p style="margin:0 0 12px;font-size:14px;font-weight:600;color:{_TEXT};">{_esc(to)}</p>'
-        f'<p style="margin:0 0 8px;font-size:13px;color:{_MUTED};">Temporary password</p>'
-        f'<p style="margin:0;font-size:14px;font-weight:600;color:{_TEXT};font-family:monospace;">{_esc(temporary_password)}</p>'
+        f'<p style="margin:0 0 8px;font-size:13px;color:{_MUTED};">Password</p>'
+        f'<p style="margin:0;font-size:14px;font-weight:600;color:{_TEXT};font-family:monospace;">{_esc(initial_password)}</p>'
         f"</td></tr></table>"
     )
     body = f"""
