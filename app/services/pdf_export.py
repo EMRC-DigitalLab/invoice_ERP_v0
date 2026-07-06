@@ -46,6 +46,12 @@ _CURRENCY_SYMBOLS = {
 }
 _PAYMENT_OPTION_LABELS = {"arrears": "Arrears", "advance": "Advance"}
 _SERVICE_STATUS_LABELS = {"completed": "Completed", "milestone": "Milestone"}
+_REQUEST_TYPE_TITLES = {
+    "project_payment": "Contractor Invoice Processing Form",
+    "advance": "Cash Advance Request Form",
+    "expense": "State of Expense Form",
+    "proposal": "I Owe You (IOU) Form",
+}
 _ROLE_LABELS = {
     "staff": "Staff",
     "executive_assistant": "Executive Assistant",
@@ -158,6 +164,92 @@ def _draw_stamp(
     c.restoreState()
 
 
+def _build_fields(req: Request, amount: float) -> list[tuple[str, str, str | None]]:
+    """Field grid is unique per form type — a Cash Advance PDF has no PO/invoice
+    fields to show, just as an Invoice PDF has no bank-account fields to show."""
+    if req.type == "project_payment":
+        return [
+            (
+                "Contractor Name",
+                getattr(req, "contractor_name", None) or "—",
+                "Entities must be in capital letters",
+            ),
+            ("PO / Contract Number", req.po_number or "—", None),
+            (
+                "Requesting Department",
+                req.project_owner_department or req.department or "—",
+                "Select from list",
+            ),
+            ("Invoice Number", getattr(req, "invoice_number", None) or "—", None),
+            ("Invoice Amount", _fmt_amount(amount, req.currency), None),
+            ("Invoice Date", _fmt_date(getattr(req, "invoice_date", None)), None),
+            (
+                "Payment Timeframe",
+                f"{req.payment_timeframe_days} days"
+                if getattr(req, "payment_timeframe_days", None)
+                else "—",
+                None,
+            ),
+            (
+                "Payment Option",
+                _PAYMENT_OPTION_LABELS.get(getattr(req, "payment_option", None), "—"),
+                "Select from list",
+            ),
+            (
+                "Service Status",
+                _SERVICE_STATUS_LABELS.get(getattr(req, "service_status", None), "—"),
+                "Select from list",
+            ),
+            (
+                "TIN",
+                getattr(req, "tin", None) or "—",
+                "Tax Identification Number (where applicable)",
+            ),
+            (
+                "Documents Confirmed",
+                "Yes" if getattr(req, "documents_confirmed", False) else "No",
+                "Select from list",
+            ),
+            ("Requested By", req.requested_by, None),
+            ("Created", _fmt_date(req.created_at), None),
+        ]
+
+    if req.type in ("advance", "expense"):
+        is_advance = req.type == "advance"
+        detail_label = "Advance Details" if is_advance else "Expense Details"
+        detail_value = (
+            getattr(req, "advance_details" if is_advance else "expense_details", None)
+            or "—"
+        )
+        return [
+            ("Department", req.department or "—", None),
+            (detail_label, detail_value, None),
+            ("Amount", _fmt_amount(amount, req.currency), None),
+            ("Bank Name", getattr(req, "bank_name", None) or "—", None),
+            ("Account Name", getattr(req, "account_name", None) or "—", None),
+            ("Account Number", getattr(req, "account_no", None) or "—", None),
+            ("Requested By", req.requested_by, None),
+            ("Created", _fmt_date(req.created_at), None),
+        ]
+
+    if req.type == "proposal":
+        return [
+            ("Department", req.department or "—", None),
+            ("Purpose", getattr(req, "purpose", None) or "—", None),
+            ("Amount Proposed", _fmt_amount(amount, req.currency), None),
+            ("Bank Name", getattr(req, "bank_name", None) or "—", None),
+            ("Account Name", getattr(req, "account_name", None) or "—", None),
+            ("Account Number", getattr(req, "account_no", None) or "—", None),
+            ("Requested By", req.requested_by, None),
+            ("Created", _fmt_date(req.created_at), None),
+        ]
+
+    return [
+        ("Requested By", req.requested_by, None),
+        ("Created", _fmt_date(req.created_at), None),
+    ]
+
+
 def generate_request_pdf(
     req: Request, steps: list[ApprovalStep], attachments: list[Attachment]
 ) -> bytes:
@@ -191,7 +283,11 @@ def generate_request_pdf(
     c.drawCentredString(_PAGE_W / 2, y - 26, "IBEDC")
     c.setFont(_FONT_REGULAR, 9)
     c.setFillColor(_SLATE)
-    c.drawCentredString(_PAGE_W / 2, y - 39, "Contractor Invoice Processing Form")
+    c.drawCentredString(
+        _PAGE_W / 2,
+        y - 39,
+        _REQUEST_TYPE_TITLES.get(req.type, "Request Form"),
+    )
 
     # Reference / requester tag, top-right corner
     c.setFont(_FONT_BOLD, 10.5)
@@ -231,51 +327,7 @@ def generate_request_pdf(
     amount = get_effective_amount(req)
     attachment_names = ", ".join(a.name for a in attachments) if attachments else "—"
 
-    fields: list[tuple[str, str, str | None]] = [
-        (
-            "Contractor Name",
-            getattr(req, "contractor_name", None) or "—",
-            "Entities must be in capital letters",
-        ),
-        ("PO / Contract Number", req.po_number or "—", None),
-        (
-            "Requesting Department",
-            req.project_owner_department or req.department or "—",
-            "Select from list",
-        ),
-        ("Invoice Number", getattr(req, "invoice_number", None) or "—", None),
-        ("Invoice Amount", _fmt_amount(amount, req.currency), None),
-        ("Invoice Date", _fmt_date(getattr(req, "invoice_date", None)), None),
-        (
-            "Payment Timeframe",
-            f"{req.payment_timeframe_days} days"
-            if getattr(req, "payment_timeframe_days", None)
-            else "—",
-            None,
-        ),
-        (
-            "Payment Option",
-            _PAYMENT_OPTION_LABELS.get(getattr(req, "payment_option", None), "—"),
-            "Select from list",
-        ),
-        (
-            "Service Status",
-            _SERVICE_STATUS_LABELS.get(getattr(req, "service_status", None), "—"),
-            "Select from list",
-        ),
-        (
-            "TIN",
-            getattr(req, "tin", None) or "—",
-            "Tax Identification Number (where applicable)",
-        ),
-        (
-            "Documents Confirmed",
-            "Yes" if getattr(req, "documents_confirmed", False) else "No",
-            "Select from list",
-        ),
-        ("Requested By", req.requested_by, None),
-        ("Created", _fmt_date(req.created_at), None),
-    ]
+    fields = _build_fields(req, amount)
 
     cols = 2
     col_w = (_PAGE_W - 2 * _MARGIN) / cols
@@ -303,7 +355,9 @@ def generate_request_pdf(
     # ── Attachments, styled as a link field ─────────────────────────────────
     c.setFont(_FONT_REGULAR, 6.5)
     c.setFillColor(_MUTED)
-    c.drawString(_MARGIN, y, "ATTACH INVOICE")
+    c.drawString(
+        _MARGIN, y, "ATTACH INVOICE" if req.type == "project_payment" else "ATTACHMENTS"
+    )
     c.setFont(_FONT_SEMIBOLD, 8.5)
     c.setFillColor(colors.HexColor("#2563eb"))
     c.drawString(_MARGIN, y - 13, attachment_names[:90])
