@@ -72,7 +72,7 @@ def resolve_role_to_user(
         )
         return user.id if user else None
 
-    if role in ("finance_controller", "finance_control", "procurement", "cfo"):
+    if role in ("finance_controller", "finance_control", "procurement", "cfo", "md"):
         settings = db.get(OrgSettings, 1)
         if settings:
             seat_map = {
@@ -80,6 +80,7 @@ def resolve_role_to_user(
                 "finance_control": settings.finance_control_user_id,
                 "procurement": settings.procurement_user_id,
                 "cfo": settings.cfo_user_id,
+                "md": settings.md_user_id,
             }
             user_id = seat_map.get(role)
             if user_id:

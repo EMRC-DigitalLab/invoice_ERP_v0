@@ -5,6 +5,7 @@ CHAIN_ROLE_LEVEL: dict[str, int] = {
     "regional_manager": 3,
     "finance_controller": 4,
     "cfo": 5,
+    "md": 6,
 }
 
 # Per the CFO's 2026-07 review call, the Invoice Submitter Form (formerly

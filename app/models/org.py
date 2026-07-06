@@ -55,3 +55,4 @@ class OrgSettings(Base):
     finance_control_user_id = Column(String, ForeignKey("users.id"), nullable=True)
     procurement_user_id = Column(String, ForeignKey("users.id"), nullable=True)
     cfo_user_id = Column(String, ForeignKey("users.id"), nullable=True)
+    md_user_id = Column(String, ForeignKey("users.id"), nullable=True)
