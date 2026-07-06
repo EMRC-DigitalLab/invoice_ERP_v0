@@ -84,13 +84,14 @@ def onboard_staff(
         dept_name = dept.name
 
     temp_password = secrets.token_urlsafe(12)
+    title = (payload.title or "").strip() or payload.role.replace("_", " ").title()
     user = User(
         id=uuid.uuid4().hex,
         name=payload.name,
         email=payload.email,
         password_hash=get_password_hash(temp_password),
         role=payload.role,
-        title=payload.title,
+        title=title,
         department=dept_name,
         department_id=payload.department_id or None,
         region_id=payload.region_id or None,

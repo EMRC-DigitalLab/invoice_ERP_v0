@@ -57,7 +57,8 @@ class OnboardStaffPayload(BaseModel):
     name: str
     email: str
     role: str
-    title: str
+    # Optional — defaults to a humanized version of the role if omitted.
+    title: str | None = None
     department_id: str | None = None
     region_id: str | None = None
     is_admin: bool = False
