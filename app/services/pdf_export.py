@@ -57,6 +57,7 @@ _ROLE_LABELS = {
     "project_owner": "Project Owner",
     "procurement": "Procurement",
     "cfo": "CFO",
+    "md": "Managing Director",
 }
 _STATUS_LABELS = {
     "draft": "Draft",

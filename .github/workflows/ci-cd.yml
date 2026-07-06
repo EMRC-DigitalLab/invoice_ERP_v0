@@ -23,6 +23,7 @@
 #   STAGING_DB_NAME               staging DB name  e.g. invoice_erp_staging
 #   STAGING_RESEND_API_KEY        Resend API key for staging
 #   STAGING_RESEND_FROM_EMAIL     sender email for staging
+#   STAGING_FRONTEND_URL          deployed frontend origin, e.g. https://ibedc-invoicing.vercel.app
 #   STAGING_UPLOAD_DIR            e.g. /opt/invoice_erp/staging/uploads
 #   STAGING_JWT_SECRET            random 32+ char secret for JWT signing
 #
@@ -33,6 +34,7 @@
 #   PRODUCTION_DB_NAME            production DB name  e.g. invoice_erp_production
 #   PRODUCTION_RESEND_API_KEY     Resend API key for production
 #   PRODUCTION_RESEND_FROM_EMAIL  sender email for production
+#   PRODUCTION_FRONTEND_URL       deployed frontend origin, e.g. https://ibedc-invoicing.vercel.app
 #   PRODUCTION_UPLOAD_DIR         e.g. /opt/invoice_erp/production/uploads
 #   PRODUCTION_JWT_SECRET         random 32+ char secret for JWT signing
 # ─────────────────────────────────────────────────────────────────────────────
@@ -169,6 +171,7 @@ jobs:
           DB_NAME: ${{ secrets.STAGING_DB_NAME }}
           RESEND_API_KEY: ${{ secrets.STAGING_RESEND_API_KEY }}
           RESEND_FROM_EMAIL: ${{ secrets.STAGING_RESEND_FROM_EMAIL }}
+          FRONTEND_URL: ${{ secrets.STAGING_FRONTEND_URL }}
           UPLOAD_DIR: ${{ secrets.STAGING_UPLOAD_DIR }}
           JWT_SECRET: ${{ secrets.STAGING_JWT_SECRET }}
         with:
@@ -177,7 +180,7 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: 22
           command_timeout: 10m
-          envs: GIT_SHA,GHCR_TOKEN,GHCR_USER,DB_HOST,DB_PORT,DB_USER,DB_PASSWORD,DB_NAME,RESEND_API_KEY,RESEND_FROM_EMAIL,UPLOAD_DIR,JWT_SECRET
+          envs: GIT_SHA,GHCR_TOKEN,GHCR_USER,DB_HOST,DB_PORT,DB_USER,DB_PASSWORD,DB_NAME,RESEND_API_KEY,RESEND_FROM_EMAIL,FRONTEND_URL,UPLOAD_DIR,JWT_SECRET
           script: |
             set -e
 
@@ -194,6 +197,7 @@ jobs:
             DB_NAME=${DB_NAME}
             RESEND_API_KEY=${RESEND_API_KEY}
             RESEND_FROM_EMAIL=${RESEND_FROM_EMAIL}
+            FRONTEND_URL=${FRONTEND_URL}
             UPLOAD_DIR=${UPLOAD_DIR}
             JWT_SECRET=${JWT_SECRET}
             EOF
@@ -236,6 +240,7 @@ jobs:
           DB_NAME: ${{ secrets.PRODUCTION_DB_NAME }}
           RESEND_API_KEY: ${{ secrets.PRODUCTION_RESEND_API_KEY }}
           RESEND_FROM_EMAIL: ${{ secrets.PRODUCTION_RESEND_FROM_EMAIL }}
+          FRONTEND_URL: ${{ secrets.PRODUCTION_FRONTEND_URL }}
           UPLOAD_DIR: ${{ secrets.PRODUCTION_UPLOAD_DIR }}
           JWT_SECRET: ${{ secrets.PRODUCTION_JWT_SECRET }}
         with:
@@ -244,7 +249,7 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: 22
           command_timeout: 10m
-          envs: GIT_SHA,GHCR_TOKEN,GHCR_USER,DB_HOST,DB_PORT,DB_USER,DB_PASSWORD,DB_NAME,RESEND_API_KEY,RESEND_FROM_EMAIL,UPLOAD_DIR,JWT_SECRET
+          envs: GIT_SHA,GHCR_TOKEN,GHCR_USER,DB_HOST,DB_PORT,DB_USER,DB_PASSWORD,DB_NAME,RESEND_API_KEY,RESEND_FROM_EMAIL,FRONTEND_URL,UPLOAD_DIR,JWT_SECRET
           script: |
             set -e
 
@@ -261,6 +266,7 @@ jobs:
             DB_NAME=${DB_NAME}
             RESEND_API_KEY=${RESEND_API_KEY}
             RESEND_FROM_EMAIL=${RESEND_FROM_EMAIL}
+            FRONTEND_URL=${FRONTEND_URL}
             UPLOAD_DIR=${UPLOAD_DIR}
             JWT_SECRET=${JWT_SECRET}
             EOF

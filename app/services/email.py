@@ -65,9 +65,6 @@ def _shell(preheader: str, body_html: str) -> str:
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>IBEDC Invoicing Platform</title>
-    <style>
-      @import url('https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&display=swap');
-    </style>
   </head>
   <body style="margin:0;padding:0;background-color:{_SURFACE};font-family:Figtree,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
     <span style="display:none;font-size:1px;color:{_SURFACE};line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;">{_esc(preheader)}</span>
@@ -202,4 +199,57 @@ def send_clarification_received_email(
         to=to,
         subject=f"Clarification received — {request_reference}",
         html=_shell(f"Clarification received on {request_reference}", body),
+    )
+
+
+_DECISION_COLORS = {"approved": "#059669", "rejected": "#dc2626"}
+
+
+def send_request_decision_email(
+    to: str,
+    recipient_name: str,
+    decision: str,
+    request_reference: str,
+    request_subject: str,
+    decided_by_name: str,
+    decided_by_role_label: str,
+    app_link: str,
+    comment: str | None = None,
+) -> dict:
+    """Notifies the requester and every prior approver once a request reaches
+    a final decision (approved or rejected) — sent after MD/CFO sign-off."""
+    decision_label = decision.capitalize()
+    color = _DECISION_COLORS.get(decision, _TEXT)
+    details = _detail_table(
+        [
+            ("Reference", request_reference),
+            ("Subject", request_subject),
+            ("Decision", decision_label),
+            ("Decided by", f"{decided_by_name} — {decided_by_role_label}"),
+        ]
+    )
+    comment_block = (
+        f'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
+        f'style="border:1px solid {_BORDER};border-radius:8px;margin:0 0 20px;">'
+        f'<tr><td style="padding:14px 16px;">'
+        f'<p style="margin:0 0 4px;font-size:13px;font-weight:600;color:{_TEXT};">Comment</p>'
+        f'<p style="margin:0;font-size:13px;color:{_MUTED};white-space:pre-wrap;">{_esc(comment)}</p>'
+        f"</td></tr></table>"
+        if comment
+        else ""
+    )
+    body = f"""
+    <h2 style="margin:0 0 12px;font-size:18px;color:{_TEXT};">Hi {_esc(recipient_name)},</h2>
+    <p style="margin:0 0 4px;color:{_MUTED};">
+        Request <strong style="color:{_TEXT};">{_esc(request_reference)}</strong> has been
+        <strong style="color:{color};">{_esc(decision_label.lower())}</strong>.
+    </p>
+    {details}
+    {comment_block}
+    {_button("View in the app", app_link)}
+    """
+    return send_email(
+        to=to,
+        subject=f"Request {decision_label} — {request_reference}",
+        html=_shell(f"Request {decision_label.lower()} — {request_reference}", body),
     )
