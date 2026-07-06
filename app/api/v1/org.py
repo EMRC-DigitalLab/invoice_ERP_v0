@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import get_current_user, get_password_hash
 from app.models.org import Department, DepartmentRegionAssignment, OrgSettings, Region
@@ -36,6 +37,7 @@ from app.schemas.org import (
     UpdateStaffPayload,
     UpsertDeptRegionAssignment,
 )
+from app.services.email import send_welcome_email
 
 router = APIRouter(prefix="/org", tags=["org"])
 
@@ -102,6 +104,16 @@ def onboard_staff(
     db.add(user)
     db.commit()
     db.refresh(user)
+
+    try:
+        send_welcome_email(
+            to=user.email,
+            name=user.name,
+            temporary_password=temp_password,
+            login_link=f"{settings.FRONTEND_URL}/login",
+        )
+    except Exception:  # noqa: BLE001 — the account is already created; don't fail onboarding over a notification email
+        pass
 
     return OnboardStaffResponse(
         data=OnboardResult(
