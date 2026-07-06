@@ -148,7 +148,7 @@ class OnboardResult(BaseModel):
     )
 
     staff: UserOut
-    temporary_password: str
+    initial_password: str
 
 
 class OnboardStaffResponse(BaseModel):

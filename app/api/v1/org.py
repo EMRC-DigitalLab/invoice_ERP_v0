@@ -9,6 +9,7 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import get_current_user, get_password_hash
 from app.models.org import Department, DepartmentRegionAssignment, OrgSettings, Region
+from app.models.request import ApprovalStep
 from app.models.user import User
 from app.schemas.auth import UserOut
 from app.schemas.org import (
@@ -85,13 +86,13 @@ def onboard_staff(
             raise HTTPException(status_code=400, detail="Department not found.")
         dept_name = dept.name
 
-    temp_password = secrets.token_urlsafe(12)
+    initial_password = secrets.token_urlsafe(12)
     title = (payload.title or "").strip() or payload.role.replace("_", " ").title()
     user = User(
         id=uuid.uuid4().hex,
         name=payload.name,
         email=payload.email,
-        password_hash=get_password_hash(temp_password),
+        password_hash=get_password_hash(initial_password),
         role=payload.role,
         title=title,
         department=dept_name,
@@ -109,7 +110,7 @@ def onboard_staff(
         send_welcome_email(
             to=user.email,
             name=user.name,
-            temporary_password=temp_password,
+            initial_password=initial_password,
             login_link=f"{settings.FRONTEND_URL}/login",
         )
     except Exception:  # noqa: BLE001 — the account is already created; don't fail onboarding over a notification email
@@ -118,7 +119,7 @@ def onboard_staff(
     return OnboardStaffResponse(
         data=OnboardResult(
             staff=UserOut.model_validate(user),
-            temporary_password=temp_password,
+            initial_password=initial_password,
         )
     )
 
@@ -171,6 +172,76 @@ def update_staff(
     db.commit()
     db.refresh(user)
     return StaffDetailResponse(data=UserOut.model_validate(user))
+
+
+@router.delete("/staff/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_staff(
+    user_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Deactivates a staff member — a soft delete, not a hard row delete.
+    Requests/audit entries this person is attached to reference their name and
+    role directly, so history stays intact and readable even after this.
+    Also strips them from every seat (org-wide, department, region) so they
+    stop being resolvable as an approver anywhere on the dashboard."""
+    _require_admin(current_user)
+
+    if user_id == current_user.id:
+        raise HTTPException(
+            status_code=400, detail="You cannot remove your own account."
+        )
+
+    user = db.get(User, user_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="Staff member not found.")
+
+    pending_forward = (
+        db.query(ApprovalStep)
+        .filter(
+            ApprovalStep.assigned_user_id == user_id,
+            ApprovalStep.status == "pending",
+        )
+        .first()
+    )
+    if pending_forward is not None:
+        raise HTTPException(
+            status_code=409,
+            detail="This person has a pending approval forwarded to them — reassign or resolve it before removing them.",
+        )
+
+    user.is_active = False
+
+    for dept in db.query(Department).filter(
+        (Department.head_user_id == user_id)
+        | (Department.project_owner_user_id == user_id)
+    ):
+        if dept.head_user_id == user_id:
+            dept.head_user_id = None
+        if dept.project_owner_user_id == user_id:
+            dept.project_owner_user_id = None
+
+    for region in db.query(Region).filter(Region.regional_manager_user_id == user_id):
+        region.regional_manager_user_id = None
+
+    for assignment in db.query(DepartmentRegionAssignment).filter(
+        DepartmentRegionAssignment.regional_department_head_user_id == user_id
+    ):
+        assignment.regional_department_head_user_id = None
+
+    org_settings = db.get(OrgSettings, 1)
+    if org_settings is not None:
+        for field in (
+            "finance_controller_user_id",
+            "finance_control_user_id",
+            "procurement_user_id",
+            "cfo_user_id",
+            "md_user_id",
+        ):
+            if getattr(org_settings, field) == user_id:
+                setattr(org_settings, field, None)
+
+    db.commit()
 
 
 # ── Departments ────────────────────────────────────────────────────────────────
