@@ -65,6 +65,8 @@ class OnboardStaffPayload(BaseModel):
 class UpdateStaffPayload(BaseModel):
     model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
 
+    name: str | None = None
+    email: str | None = None
     role: str | None = None
     title: str | None = None
     department_id: str | None = None

@@ -33,7 +33,7 @@ app.add_middleware(RequestLoggingMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"] if settings.ENV != "production" else [],
-    allow_origin_regex=r"(https://.*\.vercel\.app|https://v0erplive\.raven-emrc\.com|https://v0erpstaging\.raven-emrc\.com|http://localhost(:\d+)?|http://127\.0\.0\.1(:\d+)?)",
+    allow_origin_regex=r"(https://.*\.vercel\.app|https://.*\.raven-emrc\.com|http://localhost(:\d+)?|http://127\.0\.0\.1(:\d+)?)",
     allow_methods=["*"],
     allow_headers=["*"],
     allow_credentials=False,

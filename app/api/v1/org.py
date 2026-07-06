@@ -121,6 +121,17 @@ def update_staff(
 
     updates = payload.model_dump(exclude_unset=True)
 
+    if "email" in updates:
+        new_email = updates["email"].strip().lower()
+        if db.query(User).filter(User.email == new_email, User.id != user_id).first():
+            raise HTTPException(
+                status_code=409, detail="A staff member with this email already exists."
+            )
+        updates["email"] = new_email
+
+    if "name" in updates:
+        updates["name"] = updates["name"].strip()
+
     if "department_id" in updates:
         dept = db.get(Department, updates["department_id"])
         if dept is None:
