@@ -96,7 +96,10 @@ def list_purchase_orders(
 
     total = query.count()
     purchase_orders = (
-        query.order_by(PurchaseOrder.po_number.asc())
+        # Most recently issued first; POs without a date fall to the end.
+        query.order_by(
+            PurchaseOrder.date_issued.is_(None), PurchaseOrder.date_issued.desc()
+        )
         .offset((page - 1) * page_size)
         .limit(page_size)
         .all()

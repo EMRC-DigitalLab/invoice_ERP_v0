@@ -36,7 +36,14 @@ try:
 except Exception:
     pass  # Falls back to the base-14 Helvetica family if the font files are missing.
 
-_CURRENCY_SYMBOLS = {"NGN": "₦", "USD": "$", "GBP": "£"}
+_CURRENCY_SYMBOLS = {
+    # The Naira sign (U+20A6) isn't in the embedded Figtree font's glyph set —
+    # it rendered as a box in the PDF. "NGN" reads unambiguously and avoids
+    # depending on font glyph coverage entirely.
+    "NGN": "NGN ",
+    "USD": "$",
+    "GBP": "£",
+}
 _PAYMENT_OPTION_LABELS = {"arrears": "Arrears", "advance": "Advance"}
 _SERVICE_STATUS_LABELS = {"completed": "Completed", "milestone": "Milestone"}
 _ROLE_LABELS = {
@@ -96,12 +103,16 @@ def _fmt_datetime(value) -> str:
             value = datetime.fromisoformat(value.replace("Z", "+00:00"))
         except ValueError:
             return value
-    return value.strftime("%d %b %Y, %I:%M %p")
+    return value.strftime("%d %b %Y, %I:%M:%S %p")
 
 
 def _fmt_amount(amount: float, currency: str) -> str:
     symbol = _CURRENCY_SYMBOLS.get(currency, currency + " ")
     return f"{symbol}{amount:,.2f}"
+
+
+def _fmt_requested_at(req: Request) -> str:
+    return _fmt_datetime(req.submitted_at or req.created_at)
 
 
 def _draw_stamp(
@@ -190,6 +201,7 @@ def generate_request_pdf(
     c.drawRightString(
         _PAGE_W - _MARGIN - 56, y - 16, f"Requested by {req.requested_by}"
     )
+    c.drawRightString(_PAGE_W - _MARGIN - 56, y - 26, _fmt_requested_at(req))
 
     status_color = _STAMP_COLORS.get(req.status, _SLATE)
     _draw_stamp(
