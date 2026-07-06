@@ -327,51 +327,7 @@ def generate_request_pdf(
     amount = get_effective_amount(req)
     attachment_names = ", ".join(a.name for a in attachments) if attachments else "—"
 
-    fields: list[tuple[str, str, str | None]] = [
-        (
-            "Contractor Name",
-            getattr(req, "contractor_name", None) or "—",
-            "Entities must be in capital letters",
-        ),
-        ("PO / Contract Number", req.po_number or "—", None),
-        (
-            "Requesting Department",
-            req.project_owner_department or req.department or "—",
-            "Select from list",
-        ),
-        ("Invoice Number", getattr(req, "invoice_number", None) or "—", None),
-        ("Invoice Amount", _fmt_amount(amount, req.currency), None),
-        ("Invoice Date", _fmt_date(getattr(req, "invoice_date", None)), None),
-        (
-            "Payment Timeframe",
-            f"{req.payment_timeframe_days} days"
-            if getattr(req, "payment_timeframe_days", None)
-            else "—",
-            None,
-        ),
-        (
-            "Payment Option",
-            _PAYMENT_OPTION_LABELS.get(getattr(req, "payment_option", None), "—"),
-            "Select from list",
-        ),
-        (
-            "Service Status",
-            _SERVICE_STATUS_LABELS.get(getattr(req, "service_status", None), "—"),
-            "Select from list",
-        ),
-        (
-            "TIN",
-            getattr(req, "tin", None) or "—",
-            "Tax Identification Number (where applicable)",
-        ),
-        (
-            "Documents Confirmed",
-            "Yes" if getattr(req, "documents_confirmed", False) else "No",
-            "Select from list",
-        ),
-        ("Requested By", req.requested_by, None),
-        ("Created", _fmt_date(req.created_at), None),
-    ]
+    fields = _build_fields(req, amount)
 
     cols = 2
     col_w = (_PAGE_W - 2 * _MARGIN) / cols
@@ -399,7 +355,9 @@ def generate_request_pdf(
     # ── Attachments, styled as a link field ─────────────────────────────────
     c.setFont(_FONT_REGULAR, 6.5)
     c.setFillColor(_MUTED)
-    c.drawString(_MARGIN, y, "ATTACH INVOICE")
+    c.drawString(
+        _MARGIN, y, "ATTACH INVOICE" if req.type == "project_payment" else "ATTACHMENTS"
+    )
     c.setFont(_FONT_SEMIBOLD, 8.5)
     c.setFillColor(colors.HexColor("#2563eb"))
     c.drawString(_MARGIN, y - 13, attachment_names[:90])
