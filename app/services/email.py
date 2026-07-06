@@ -108,6 +108,36 @@ def send_invoice_email(to: str, invoice_number: str, pdf_url: str) -> dict:
     )
 
 
+def send_welcome_email(
+    to: str,
+    name: str,
+    temporary_password: str,
+    login_link: str,
+) -> dict:
+    credentials_block = (
+        f'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
+        f'style="border:1px solid {_BORDER};border-radius:8px;margin:0 0 20px;">'
+        f'<tr><td style="padding:14px 16px;">'
+        f'<p style="margin:0 0 8px;font-size:13px;color:{_MUTED};">Email</p>'
+        f'<p style="margin:0 0 12px;font-size:14px;font-weight:600;color:{_TEXT};">{_esc(to)}</p>'
+        f'<p style="margin:0 0 8px;font-size:13px;color:{_MUTED};">Temporary password</p>'
+        f'<p style="margin:0;font-size:14px;font-weight:600;color:{_TEXT};font-family:monospace;">{_esc(temporary_password)}</p>'
+        f"</td></tr></table>"
+    )
+    body = f"""
+    <h2 style="margin:0 0 12px;font-size:18px;color:{_TEXT};">Welcome to the IBEDC Invoicing Platform</h2>
+    <p style="margin:0 0 4px;color:{_MUTED};">Hi {_esc(name)}, an account has been created for you. Use the credentials below to sign in.</p>
+    {credentials_block}
+    {_button("Sign in", login_link)}
+    <p style="margin:24px 0 0;font-size:12px;color:{_MUTED};">Please don&rsquo;t share this email — treat it like a password.</p>
+    """
+    return send_email(
+        to=to,
+        subject="Welcome to the IBEDC Invoicing Platform",
+        html=_shell("Your account is ready", body),
+    )
+
+
 def send_clarification_request_email(
     to: str,
     cc: list[str] | None,
