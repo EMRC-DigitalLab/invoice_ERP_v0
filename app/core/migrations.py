@@ -140,6 +140,14 @@ _STATEMENTS = [
     # amount withheld from the invoice payment, per the CFO's request.
     "ALTER TABLE requests ADD COLUMN IF NOT EXISTS retention_type VARCHAR;",
     "ALTER TABLE requests ADD COLUMN IF NOT EXISTS retention_value FLOAT;",
+    # Second Memo Request shape: vendor/professional-fee payment (single
+    # beneficiary, no line-items table) alongside the original staff
+    # accommodation shape — distinguished by memo_subtype.
+    "ALTER TABLE requests ADD COLUMN IF NOT EXISTS memo_subtype VARCHAR;",
+    "ALTER TABLE requests ADD COLUMN IF NOT EXISTS memo_to VARCHAR;",
+    "ALTER TABLE requests ADD COLUMN IF NOT EXISTS memo_thru VARCHAR;",
+    "ALTER TABLE requests ADD COLUMN IF NOT EXISTS memo_ref_no VARCHAR;",
+    "ALTER TABLE requests ADD COLUMN IF NOT EXISTS vat_inclusive BOOLEAN;",
 ]
 
 

@@ -71,8 +71,13 @@ def get_effective_amount(req) -> float:
     if req_type == "proposal":
         return float(getattr(req, "amount_proposed", None) or 0)
     if req_type == "memo":
+        # vendor_payment memos are a single beneficiary amount (shared `amount`
+        # column, same as advance/expense); staff_accommodation memos (and any
+        # legacy memo with no subtype set) sum the officer line-items table.
         # Works for both the Pydantic payload (line_items = list[MemoLineItemIn],
         # at creation time) and the persisted ORM Request (line_items relationship).
+        if getattr(req, "memo_subtype", None) == "vendor_payment":
+            return float(getattr(req, "amount", None) or 0)
         items = getattr(req, "line_items", None) or []
         return sum(
             float(getattr(item, "quantity", 0) or 0)

@@ -140,6 +140,11 @@ class RequestOut(BaseModel):
     # memo
     memo_body: str | None = None
     memo_cc: str | None = None
+    memo_subtype: str | None = None
+    memo_to: str | None = None
+    memo_thru: str | None = None
+    memo_ref_no: str | None = None
+    vat_inclusive: bool | None = None
 
 
 class RequestDetailResponse(BaseModel):
@@ -220,6 +225,11 @@ class CreateRequestPayload(BaseModel):
     # memo
     memo_body: str | None = None
     memo_cc: str | None = None
+    memo_subtype: str | None = None
+    memo_to: str | None = None
+    memo_thru: str | None = None
+    memo_ref_no: str | None = None
+    vat_inclusive: bool | None = None
     line_items: list[MemoLineItemIn] | None = None
 
     attachments: list[AttachmentIn] | None = None
