@@ -59,6 +59,11 @@ class Request(Base):
     tin = Column(String, nullable=True)
     service_status = Column(String, nullable=True)  # completed | milestone
     documents_confirmed = Column(Boolean, default=False, nullable=False)
+    # Retention/holdback — CFO's 2026-07 request: a percentage or fixed
+    # amount withheld from the invoice payment as contract security, released
+    # later. Optional; None/None means no retention applies.
+    retention_type = Column(String, nullable=True)  # percentage | value
+    retention_value = Column(Float, nullable=True)
 
     # advance fields
     advance_details = Column(String, nullable=True)
