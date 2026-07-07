@@ -489,6 +489,11 @@ def create_request(
         po = db.get(PurchaseOrder, payload.po_id)
         if po is None:
             raise HTTPException(status_code=400, detail="Unknown purchase order.")
+        if po.status == "paid":
+            raise HTTPException(
+                status_code=400,
+                detail="This PO is marked Paid — no new invoices can be raised against it.",
+            )
 
         committed = committed_amount_for_po(db, po.id)
         remaining = po.contract_amount - committed
@@ -544,6 +549,8 @@ def create_request(
         tin=payload.tin,
         service_status=payload.service_status,
         documents_confirmed=payload.documents_confirmed or False,
+        retention_type=payload.retention_type,
+        retention_value=payload.retention_value,
         # advance
         advance_details=payload.advance_details,
         # expense

@@ -136,6 +136,10 @@ _STATEMENTS = [
     END $$;
     """,
     "ALTER TABLE memo_line_items ALTER COLUMN quantity TYPE FLOAT USING quantity::float;",
+    # Retention/holdback on the Invoice Submitter Form — percentage or fixed
+    # amount withheld from the invoice payment, per the CFO's request.
+    "ALTER TABLE requests ADD COLUMN IF NOT EXISTS retention_type VARCHAR;",
+    "ALTER TABLE requests ADD COLUMN IF NOT EXISTS retention_value FLOAT;",
 ]
 
 

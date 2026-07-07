@@ -104,6 +104,21 @@ class RequestOut(BaseModel):
     tin: str | None = None
     service_status: str | None = None
     documents_confirmed: bool | None = None
+    retention_type: str | None = None
+    retention_value: float | None = None
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def retention_amount(self) -> float | None:
+        if (
+            not self.retention_type
+            or self.retention_value is None
+            or self.amount_due is None
+        ):
+            return None
+        if self.retention_type == "percentage":
+            return round(self.amount_due * self.retention_value / 100, 2)
+        return self.retention_value
 
     # advance
     advance_details: str | None = None
@@ -182,6 +197,8 @@ class CreateRequestPayload(BaseModel):
     tin: str | None = None
     service_status: str | None = None
     documents_confirmed: bool | None = None
+    retention_type: str | None = None
+    retention_value: float | None = None
 
     # advance
     advance_details: str | None = None

@@ -165,10 +165,32 @@ def _draw_stamp(
     c.restoreState()
 
 
+def _retention_amount(req: Request, amount: float) -> float | None:
+    retention_type = getattr(req, "retention_type", None)
+    retention_value = getattr(req, "retention_value", None)
+    if not retention_type or retention_value is None:
+        return None
+    if retention_type == "percentage":
+        return round(amount * retention_value / 100, 2)
+    return retention_value
+
+
 def _build_fields(req: Request, amount: float) -> list[tuple[str, str, str | None]]:
     """Field grid is unique per form type — a Cash Advance PDF has no PO/invoice
     fields to show, just as an Invoice PDF has no bank-account fields to show."""
     if req.type == "project_payment":
+        retention = _retention_amount(req, amount)
+        retention_fields: list[tuple[str, str, str | None]] = []
+        if retention is not None:
+            retention_label = (
+                f"{req.retention_value:g}% ({_fmt_amount(retention, req.currency)})"
+                if req.retention_type == "percentage"
+                else _fmt_amount(retention, req.currency)
+            )
+            retention_fields = [
+                ("Retention / Holdback", retention_label, None),
+                ("Net Payable", _fmt_amount(amount - retention, req.currency), None),
+            ]
         return [
             (
                 "Contractor Name",
@@ -183,6 +205,7 @@ def _build_fields(req: Request, amount: float) -> list[tuple[str, str, str | Non
             ),
             ("Invoice Number", getattr(req, "invoice_number", None) or "—", None),
             ("Invoice Amount", _fmt_amount(amount, req.currency), None),
+            *retention_fields,
             ("Invoice Date", _fmt_date(getattr(req, "invoice_date", None)), None),
             (
                 "Payment Timeframe",
