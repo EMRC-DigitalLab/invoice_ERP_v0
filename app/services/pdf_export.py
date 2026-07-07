@@ -51,6 +51,7 @@ _REQUEST_TYPE_TITLES = {
     "advance": "Cash Advance Request Form",
     "expense": "State of Expense Form",
     "proposal": "I Owe You (IOU) Form",
+    "memo": "Memo Request Form",
 }
 _ROLE_LABELS = {
     "staff": "Staff",
@@ -254,10 +255,98 @@ def _build_fields(req: Request, amount: float) -> list[tuple[str, str, str | Non
             ("Created", _fmt_date(req.created_at), None),
         ]
 
+    if req.type == "memo":
+        return [
+            ("CC", req.memo_cc or "—", None),
+            ("Requested By", req.requested_by, None),
+            ("Created", _fmt_date(req.created_at), None),
+        ]
+
     return [
         ("Requested By", req.requested_by, None),
         ("Created", _fmt_date(req.created_at), None),
     ]
+
+
+def _wrap_text(c: canvas.Canvas, text: str, font: str, size: float, max_width: float) -> list[str]:
+    """Simple greedy word-wrap for plain canvas drawString calls (this file
+    doesn't use ReportLab's Platypus flowables, so there's no built-in wrap)."""
+    words = text.split()
+    lines: list[str] = []
+    current = ""
+    for word in words:
+        candidate = f"{current} {word}".strip()
+        if c.stringWidth(candidate, font, size) > max_width and current:
+            lines.append(current)
+            current = word
+        else:
+            current = candidate
+    if current:
+        lines.append(current)
+    return lines
+
+
+def _draw_memo_line_items(c: canvas.Canvas, req: Request, y: float) -> float:
+    """Draws the officer/nights/rate/total/bank table for a Memo Request,
+    ending with a Grand Total row — mirrors the paper memo's layout."""
+    items = list(getattr(req, "line_items", None) or [])
+    if not items:
+        return y
+
+    col_widths = [22, 150, 45, 75, 80, 118]
+    headers = ["S/N", "Officer", "Nights", "Rate/Night", "Total", "Bank Details"]
+    table_w = sum(col_widths)
+    row_h = 18
+    y_top = y
+
+    x0 = _MARGIN
+    c.setFont(_FONT_SEMIBOLD, 7.5)
+    c.setFillColor(colors.white)
+    c.setFillColor(_BRAND)
+    c.rect(x0, y - row_h, table_w, row_h, stroke=0, fill=1)
+    c.setFillColor(colors.white)
+    cx = x0
+    for header, w in zip(headers, col_widths):
+        c.drawString(cx + 4, y - row_h + 6, header)
+        cx += w
+    y -= row_h
+
+    grand_total = 0.0
+    c.setFont(_FONT_REGULAR, 7.5)
+    for i, item in enumerate(items):
+        total = (item.nights or 0) * (item.rate_per_night or 0)
+        grand_total += total
+        bg = colors.HexColor("#f7faf9") if i % 2 == 0 else colors.white
+        c.setFillColor(bg)
+        c.rect(x0, y - row_h, table_w, row_h, stroke=0, fill=1)
+        c.setFillColor(_INK)
+        cx = x0
+        values = [
+            str(i + 1),
+            (item.officer_name or "—")[:28],
+            str(item.nights or 0),
+            _fmt_amount(item.rate_per_night or 0, req.currency),
+            _fmt_amount(total, req.currency),
+            (item.bank_details or "—")[:20],
+        ]
+        for value, w in zip(values, col_widths):
+            c.drawString(cx + 4, y - row_h + 6, value)
+            cx += w
+        y -= row_h
+
+    c.setFillColor(colors.HexColor("#eef7f5"))
+    c.rect(x0, y - row_h, table_w, row_h, stroke=0, fill=1)
+    c.setFont(_FONT_BOLD, 8)
+    c.setFillColor(_BRAND)
+    c.drawString(x0 + 4, y - row_h + 6, "GRAND TOTAL")
+    c.drawRightString(x0 + table_w - 4, y - row_h + 6, _fmt_amount(grand_total, req.currency))
+    y -= row_h
+
+    c.setStrokeColor(_HAIRLINE)
+    c.setLineWidth(0.5)
+    c.rect(x0, y, table_w, y_top - y, stroke=1, fill=0)
+
+    return y - 12
 
 
 def generate_request_pdf(
@@ -332,6 +421,18 @@ def generate_request_pdf(
     c.setFillColor(_INK)
     c.drawString(_MARGIN, y, req.subject or "")
     y -= 26
+
+    # ── Memo narrative + line-items table (Memo Request only) ───────────────
+    if req.type == "memo" and req.memo_body:
+        c.setFont(_FONT_REGULAR, 8.5)
+        c.setFillColor(_SLATE)
+        for line in _wrap_text(c, req.memo_body, _FONT_REGULAR, 8.5, _PAGE_W - 2 * _MARGIN):
+            c.drawString(_MARGIN, y, line)
+            y -= 12
+        y -= 8
+
+    if req.type == "memo":
+        y = _draw_memo_line_items(c, req, y)
 
     # ── Open field layout: label above value, italic hint below ────────────
     amount = get_effective_amount(req)

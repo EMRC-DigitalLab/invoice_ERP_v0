@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m ruff format app/services/gmail_smtp.py app/core/config.py)",
+      "Bash(python -m ruff check app/services/gmail_smtp.py app/core/config.py)",
+      "Bash(git commit -m ' *)",
+      "Bash(python -c ' *)",
+      "Bash(python -m ruff format app/services/gmail_smtp.py)",
+      "Bash(python -m ruff check app/services/gmail_smtp.py)",
+      "Bash(nslookup -type=SOA raven-emrc.com)",
+      "Bash(curl -s \"https://rdap.org/domain/raven-emrc.com\")",
+      "Bash(curl -s \"https://rdap.verisign.com/com/v1/domain/raven-emrc.com\")"
+    ]
+  }
+}
