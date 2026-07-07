@@ -94,16 +94,18 @@ class Request(Base):
 
 
 class MemoLineItem(Base):
-    """One officer/row on a Memo Request's accommodation-or-expense table —
-    variable-length, so it's a child table rather than fixed Request columns."""
+    """One row on a Memo Request's line-item table — generic quantity x unit
+    rate, so it fits any memo (accommodation, purchases, etc.), not just the
+    hotel-accommodation format it was first modeled from. Variable-length, so
+    it's a child table rather than fixed Request columns."""
 
     __tablename__ = "memo_line_items"
 
     id = Column(String, primary_key=True)
     request_id = Column(String, ForeignKey("requests.id"), nullable=False, index=True)
-    officer_name = Column(String, nullable=False)
-    nights = Column(Integer, nullable=False)
-    rate_per_night = Column(Float, nullable=False)
+    description = Column(String, nullable=False)
+    quantity = Column(Float, nullable=False)
+    unit_rate = Column(Float, nullable=False)
     bank_details = Column(String, nullable=True)
     sort_order = Column(Integer, default=0, nullable=False)
 

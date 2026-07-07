@@ -288,15 +288,20 @@ def _wrap_text(
     return lines
 
 
+def _fmt_qty(value: float) -> str:
+    return str(int(value)) if float(value).is_integer() else f"{value:g}"
+
+
 def _draw_memo_line_items(c: canvas.Canvas, req: Request, y: float) -> float:
-    """Draws the officer/nights/rate/total/bank table for a Memo Request,
-    ending with a Grand Total row — mirrors the paper memo's layout."""
+    """Draws the description/quantity/unit-rate/total/bank table for a Memo
+    Request, ending with a Grand Total row — generic enough to fit any memo,
+    not just the hotel-accommodation format it was first modeled from."""
     items = list(getattr(req, "line_items", None) or [])
     if not items:
         return y
 
     col_widths = [22, 150, 45, 75, 80, 118]
-    headers = ["S/N", "Officer", "Nights", "Rate/Night", "Total", "Bank Details"]
+    headers = ["S/N", "Description", "Qty", "Unit Rate", "Total", "Bank Details"]
     table_w = sum(col_widths)
     row_h = 18
     y_top = y
@@ -316,7 +321,7 @@ def _draw_memo_line_items(c: canvas.Canvas, req: Request, y: float) -> float:
     grand_total = 0.0
     c.setFont(_FONT_REGULAR, 7.5)
     for i, item in enumerate(items):
-        total = (item.nights or 0) * (item.rate_per_night or 0)
+        total = (item.quantity or 0) * (item.unit_rate or 0)
         grand_total += total
         bg = colors.HexColor("#f7faf9") if i % 2 == 0 else colors.white
         c.setFillColor(bg)
@@ -325,9 +330,9 @@ def _draw_memo_line_items(c: canvas.Canvas, req: Request, y: float) -> float:
         cx = x0
         values = [
             str(i + 1),
-            (item.officer_name or "—")[:28],
-            str(item.nights or 0),
-            _fmt_amount(item.rate_per_night or 0, req.currency),
+            (item.description or "—")[:28],
+            _fmt_qty(item.quantity or 0),
+            _fmt_amount(item.unit_rate or 0, req.currency),
             _fmt_amount(total, req.currency),
             (item.bank_details or "—")[:20],
         ]

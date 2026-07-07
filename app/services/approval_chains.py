@@ -75,8 +75,8 @@ def get_effective_amount(req) -> float:
         # at creation time) and the persisted ORM Request (line_items relationship).
         items = getattr(req, "line_items", None) or []
         return sum(
-            float(getattr(item, "nights", 0) or 0)
-            * float(getattr(item, "rate_per_night", 0) or 0)
+            float(getattr(item, "quantity", 0) or 0)
+            * float(getattr(item, "unit_rate", 0) or 0)
             for item in items
         )
     return 0.0

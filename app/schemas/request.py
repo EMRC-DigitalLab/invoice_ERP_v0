@@ -49,15 +49,15 @@ class MemoLineItemOut(BaseModel):
     model_config = _camel_cfg
 
     id: str
-    officer_name: str
-    nights: int
-    rate_per_night: float
+    description: str
+    quantity: float
+    unit_rate: float
     bank_details: str | None = None
 
     @computed_field  # type: ignore[prop-decorator]
     @property
     def total_amount(self) -> float:
-        return self.nights * self.rate_per_night
+        return self.quantity * self.unit_rate
 
 
 class RequestOut(BaseModel):
@@ -155,9 +155,9 @@ class AttachmentIn(BaseModel):
 class MemoLineItemIn(BaseModel):
     model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
 
-    officer_name: str
-    nights: int
-    rate_per_night: float
+    description: str
+    quantity: float
+    unit_rate: float
     bank_details: str | None = None
 
 

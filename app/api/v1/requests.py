@@ -570,9 +570,9 @@ def create_request(
                 MemoLineItem(
                     id=uuid.uuid4().hex,
                     request_id=req_id,
-                    officer_name=item.officer_name,
-                    nights=item.nights,
-                    rate_per_night=item.rate_per_night,
+                    description=item.description,
+                    quantity=item.quantity,
+                    unit_rate=item.unit_rate,
                     bank_details=item.bank_details,
                     sort_order=i,
                 )
