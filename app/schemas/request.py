@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, computed_field
 from pydantic.alias_generators import to_camel
 
 _camel_cfg = ConfigDict(
@@ -45,6 +45,21 @@ class AuditEntryOut(BaseModel):
     note: str | None = None
 
 
+class MemoLineItemOut(BaseModel):
+    model_config = _camel_cfg
+
+    id: str
+    description: str
+    quantity: float
+    unit_rate: float
+    bank_details: str | None = None
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def total_amount(self) -> float:
+        return self.quantity * self.unit_rate
+
+
 class RequestOut(BaseModel):
     model_config = _camel_cfg
 
@@ -70,6 +85,7 @@ class RequestOut(BaseModel):
     approval_chain: list[ApprovalStepOut] = []
     attachments: list[AttachmentOut] = []
     audit: list[AuditEntryOut] = []
+    line_items: list[MemoLineItemOut] = []
 
     # project_payment
     job_type: str | None = None
@@ -100,10 +116,15 @@ class RequestOut(BaseModel):
     bank_name: str | None = None
     account_name: str | None = None
     account_no: str | None = None
+    requesting_department: str | None = None
 
     # proposal
     purpose: str | None = None
     amount_proposed: float | None = None
+
+    # memo
+    memo_body: str | None = None
+    memo_cc: str | None = None
 
 
 class RequestDetailResponse(BaseModel):
@@ -129,6 +150,15 @@ class AttachmentIn(BaseModel):
     size: str
     type: str
     url: str | None = None
+
+
+class MemoLineItemIn(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
+
+    description: str
+    quantity: float
+    unit_rate: float
+    bank_details: str | None = None
 
 
 class CreateRequestPayload(BaseModel):
@@ -164,10 +194,16 @@ class CreateRequestPayload(BaseModel):
     bank_name: str | None = None
     account_name: str | None = None
     account_no: str | None = None
+    requesting_department: str | None = None
 
     # proposal
     purpose: str | None = None
     amount_proposed: float | None = None
+
+    # memo
+    memo_body: str | None = None
+    memo_cc: str | None = None
+    line_items: list[MemoLineItemIn] | None = None
 
     attachments: list[AttachmentIn] | None = None
 

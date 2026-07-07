@@ -21,7 +21,13 @@ from app.core.security import get_current_user
 from app.models.clarification import ClarificationRequest
 from app.models.org import Department
 from app.models.purchase_order import PurchaseOrder
-from app.models.request import ApprovalStep, Attachment, AuditEntry, Request
+from app.models.request import (
+    ApprovalStep,
+    Attachment,
+    AuditEntry,
+    MemoLineItem,
+    Request,
+)
 from app.models.user import User
 from app.schemas.clarification import (
     ClarificationDetailResponse,
@@ -97,10 +103,17 @@ def _build_request_out(db: Session, req: Request) -> RequestOut:
         .order_by(AuditEntry.timestamp)
         .all()
     )
+    line_items = (
+        db.query(MemoLineItem)
+        .filter(MemoLineItem.request_id == req.id)
+        .order_by(MemoLineItem.sort_order)
+        .all()
+    )
     data = _orm_to_dict(req)
     data["approval_chain"] = [_orm_to_dict(s) for s in steps]
     data["attachments"] = [_orm_to_dict(a) for a in atts]
     data["audit"] = [_orm_to_dict(e) for e in entries]
+    data["line_items"] = [_orm_to_dict(li) for li in line_items]
     return RequestOut.model_validate(data)
 
 
@@ -540,12 +553,30 @@ def create_request(
         bank_name=payload.bank_name,
         account_name=payload.account_name,
         account_no=payload.account_no,
+        requesting_department=payload.requesting_department,
         # proposal
         purpose=payload.purpose,
         amount_proposed=payload.amount_proposed,
+        # memo
+        memo_body=payload.memo_body,
+        memo_cc=payload.memo_cc,
     )
     db.add(req)
     db.flush()
+
+    if payload.type == "memo" and payload.line_items:
+        for i, item in enumerate(payload.line_items):
+            db.add(
+                MemoLineItem(
+                    id=uuid.uuid4().hex,
+                    request_id=req_id,
+                    description=item.description,
+                    quantity=item.quantity,
+                    unit_rate=item.unit_rate,
+                    bank_details=item.bank_details,
+                    sort_order=i,
+                )
+            )
 
     for i, role in enumerate(chain_roles):
         db.add(

@@ -86,6 +86,56 @@ _STATEMENTS = [
     # MD is now a proper org-wide singular seat (like CFO/Finance Controller),
     # resolved the same way rather than only reachable via ad-hoc "Forward".
     "ALTER TABLE org_settings ADD COLUMN IF NOT EXISTS md_user_id VARCHAR;",
+    # "Requesting Department" on Cash Advance / State of Expense / IOU — a
+    # fixed-list pick (Regulatory, F&A, etc.), not tied to the Department
+    # org-directory table/routing.
+    "ALTER TABLE requests ADD COLUMN IF NOT EXISTS requesting_department VARCHAR;",
+    # Memo Request — a new request type with a narrative body + optional CC
+    # line, plus a variable-length officer/line-items table (memo_line_items,
+    # a new table created by create_all()) rather than fixed columns.
+    "ALTER TABLE requests ADD COLUMN IF NOT EXISTS memo_body VARCHAR;",
+    "ALTER TABLE requests ADD COLUMN IF NOT EXISTS memo_cc VARCHAR;",
+    "CREATE INDEX IF NOT EXISTS ix_memo_line_items_request_id ON memo_line_items (request_id);",
+    # Memo line items were first modeled on a single hotel-accommodation memo
+    # (officer/nights/rate-per-night) — generalized to description/quantity/
+    # unit_rate so the table fits any memo type, not just that one.
+    """
+    DO $$
+    BEGIN
+        IF EXISTS (SELECT 1 FROM information_schema.columns
+                   WHERE table_name = 'memo_line_items' AND column_name = 'officer_name')
+           AND NOT EXISTS (SELECT 1 FROM information_schema.columns
+                            WHERE table_name = 'memo_line_items' AND column_name = 'description')
+        THEN
+            ALTER TABLE memo_line_items RENAME COLUMN officer_name TO description;
+        END IF;
+    END $$;
+    """,
+    """
+    DO $$
+    BEGIN
+        IF EXISTS (SELECT 1 FROM information_schema.columns
+                   WHERE table_name = 'memo_line_items' AND column_name = 'nights')
+           AND NOT EXISTS (SELECT 1 FROM information_schema.columns
+                            WHERE table_name = 'memo_line_items' AND column_name = 'quantity')
+        THEN
+            ALTER TABLE memo_line_items RENAME COLUMN nights TO quantity;
+        END IF;
+    END $$;
+    """,
+    """
+    DO $$
+    BEGIN
+        IF EXISTS (SELECT 1 FROM information_schema.columns
+                   WHERE table_name = 'memo_line_items' AND column_name = 'rate_per_night')
+           AND NOT EXISTS (SELECT 1 FROM information_schema.columns
+                            WHERE table_name = 'memo_line_items' AND column_name = 'unit_rate')
+        THEN
+            ALTER TABLE memo_line_items RENAME COLUMN rate_per_night TO unit_rate;
+        END IF;
+    END $$;
+    """,
+    "ALTER TABLE memo_line_items ALTER COLUMN quantity TYPE FLOAT USING quantity::float;",
 ]
 
 

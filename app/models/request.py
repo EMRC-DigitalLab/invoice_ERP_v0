@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 
 from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String
+from sqlalchemy.orm import relationship
 
 from app.core.database import Base
 
@@ -70,10 +71,43 @@ class Request(Base):
     bank_name = Column(String, nullable=True)
     account_name = Column(String, nullable=True)
     account_no = Column(String, nullable=True)
+    # Free-text pick from a fixed list of org units (Regulatory, F&A, etc.) —
+    # deliberately not tied to the Department org-directory table/routing.
+    requesting_department = Column(String, nullable=True)
 
     # proposal fields
     purpose = Column(String, nullable=True)
     amount_proposed = Column(Float, nullable=True)
+
+    # memo fields — narrative body + optional CC line, mirroring the paper
+    # memo format. Line items live in MemoLineItem (variable-length table).
+    memo_body = Column(String, nullable=True)
+    memo_cc = Column(String, nullable=True)
+    # viewonly: inserts/deletes are still handled explicitly in the request
+    # creation endpoint, not via cascading — this is just for reads (summary
+    # totals, PDF export) so get_effective_amount() works on the ORM object.
+    line_items = relationship(
+        "MemoLineItem",
+        order_by="MemoLineItem.sort_order",
+        viewonly=True,
+    )
+
+
+class MemoLineItem(Base):
+    """One row on a Memo Request's line-item table — generic quantity x unit
+    rate, so it fits any memo (accommodation, purchases, etc.), not just the
+    hotel-accommodation format it was first modeled from. Variable-length, so
+    it's a child table rather than fixed Request columns."""
+
+    __tablename__ = "memo_line_items"
+
+    id = Column(String, primary_key=True)
+    request_id = Column(String, ForeignKey("requests.id"), nullable=False, index=True)
+    description = Column(String, nullable=False)
+    quantity = Column(Float, nullable=False)
+    unit_rate = Column(Float, nullable=False)
+    bank_details = Column(String, nullable=True)
+    sort_order = Column(Integer, default=0, nullable=False)
 
 
 class ApprovalStep(Base):
