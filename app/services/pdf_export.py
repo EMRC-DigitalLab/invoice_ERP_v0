@@ -268,7 +268,9 @@ def _build_fields(req: Request, amount: float) -> list[tuple[str, str, str | Non
     ]
 
 
-def _wrap_text(c: canvas.Canvas, text: str, font: str, size: float, max_width: float) -> list[str]:
+def _wrap_text(
+    c: canvas.Canvas, text: str, font: str, size: float, max_width: float
+) -> list[str]:
     """Simple greedy word-wrap for plain canvas drawString calls (this file
     doesn't use ReportLab's Platypus flowables, so there's no built-in wrap)."""
     words = text.split()
@@ -339,7 +341,9 @@ def _draw_memo_line_items(c: canvas.Canvas, req: Request, y: float) -> float:
     c.setFont(_FONT_BOLD, 8)
     c.setFillColor(_BRAND)
     c.drawString(x0 + 4, y - row_h + 6, "GRAND TOTAL")
-    c.drawRightString(x0 + table_w - 4, y - row_h + 6, _fmt_amount(grand_total, req.currency))
+    c.drawRightString(
+        x0 + table_w - 4, y - row_h + 6, _fmt_amount(grand_total, req.currency)
+    )
     y -= row_h
 
     c.setStrokeColor(_HAIRLINE)
@@ -426,7 +430,9 @@ def generate_request_pdf(
     if req.type == "memo" and req.memo_body:
         c.setFont(_FONT_REGULAR, 8.5)
         c.setFillColor(_SLATE)
-        for line in _wrap_text(c, req.memo_body, _FONT_REGULAR, 8.5, _PAGE_W - 2 * _MARGIN):
+        for line in _wrap_text(
+            c, req.memo_body, _FONT_REGULAR, 8.5, _PAGE_W - 2 * _MARGIN
+        ):
             c.drawString(_MARGIN, y, line)
             y -= 12
         y -= 8
