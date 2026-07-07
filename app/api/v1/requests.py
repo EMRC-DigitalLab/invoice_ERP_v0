@@ -13,7 +13,7 @@ from fastapi import (
     UploadFile,
     status,
 )
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.core.config import settings
 from app.core.database import get_db
@@ -89,32 +89,58 @@ def _orm_to_dict(obj) -> dict:
     return d
 
 
-def _build_request_out(db: Session, req: Request) -> RequestOut:
-    steps = (
+def _build_requests_out(db: Session, requests: list[Request]) -> list[RequestOut]:
+    """Batched version of _build_request_out — fetches each child table once
+    for the whole list (WHERE request_id IN (...)) instead of once per row,
+    so a list of N requests costs 5 queries total instead of 4N+1."""
+    if not requests:
+        return []
+    request_ids = [r.id for r in requests]
+
+    steps_by_request: dict[str, list[ApprovalStep]] = {rid: [] for rid in request_ids}
+    for s in (
         db.query(ApprovalStep)
-        .filter(ApprovalStep.request_id == req.id)
+        .filter(ApprovalStep.request_id.in_(request_ids))
         .order_by(ApprovalStep.step_index)
         .all()
-    )
-    atts = db.query(Attachment).filter(Attachment.request_id == req.id).all()
-    entries = (
+    ):
+        steps_by_request[s.request_id].append(s)
+
+    atts_by_request: dict[str, list[Attachment]] = {rid: [] for rid in request_ids}
+    for a in db.query(Attachment).filter(Attachment.request_id.in_(request_ids)).all():
+        atts_by_request[a.request_id].append(a)
+
+    entries_by_request: dict[str, list[AuditEntry]] = {rid: [] for rid in request_ids}
+    for e in (
         db.query(AuditEntry)
-        .filter(AuditEntry.request_id == req.id)
+        .filter(AuditEntry.request_id.in_(request_ids))
         .order_by(AuditEntry.timestamp)
         .all()
-    )
-    line_items = (
+    ):
+        entries_by_request[e.request_id].append(e)
+
+    items_by_request: dict[str, list[MemoLineItem]] = {rid: [] for rid in request_ids}
+    for li in (
         db.query(MemoLineItem)
-        .filter(MemoLineItem.request_id == req.id)
+        .filter(MemoLineItem.request_id.in_(request_ids))
         .order_by(MemoLineItem.sort_order)
         .all()
-    )
-    data = _orm_to_dict(req)
-    data["approval_chain"] = [_orm_to_dict(s) for s in steps]
-    data["attachments"] = [_orm_to_dict(a) for a in atts]
-    data["audit"] = [_orm_to_dict(e) for e in entries]
-    data["line_items"] = [_orm_to_dict(li) for li in line_items]
-    return RequestOut.model_validate(data)
+    ):
+        items_by_request[li.request_id].append(li)
+
+    results = []
+    for req in requests:
+        data = _orm_to_dict(req)
+        data["approval_chain"] = [_orm_to_dict(s) for s in steps_by_request[req.id]]
+        data["attachments"] = [_orm_to_dict(a) for a in atts_by_request[req.id]]
+        data["audit"] = [_orm_to_dict(e) for e in entries_by_request[req.id]]
+        data["line_items"] = [_orm_to_dict(li) for li in items_by_request[req.id]]
+        results.append(RequestOut.model_validate(data))
+    return results
+
+
+def _build_request_out(db: Session, req: Request) -> RequestOut:
+    return _build_requests_out(db, [req])[0]
 
 
 def _get_or_404(db: Session, request_id: str) -> Request:
@@ -199,25 +225,60 @@ def _resolve_step_user(db: Session, req: Request, step: ApprovalStep) -> str | N
     )
 
 
-def _is_pending_for(db: Session, req: Request, user: User) -> bool:
-    """True when this in_review request's current step resolves to user."""
-    if req.status != "in_review" or req.current_step_index < 0:
-        return False
-    step = (
+def _filter_pending(db: Session, requests: list[Request], user: User) -> list[Request]:
+    """Batched replacement for checking is-pending-for-user per row — fetches
+    every candidate's current ApprovalStep in one query and memoizes
+    org-resolver lookups by (role, dept, region), instead of up to 2 queries
+    per request in the list."""
+    candidates = [
+        r for r in requests if r.status == "in_review" and r.current_step_index >= 0
+    ]
+    if not candidates:
+        return []
+
+    steps_by_request: dict[str, list[ApprovalStep]] = {}
+    for s in (
         db.query(ApprovalStep)
-        .filter(
-            ApprovalStep.request_id == req.id,
-            ApprovalStep.step_index == req.current_step_index,
+        .filter(ApprovalStep.request_id.in_([r.id for r in candidates]))
+        .all()
+    ):
+        steps_by_request.setdefault(s.request_id, []).append(s)
+
+    resolve_cache: dict[tuple, str | None] = {}
+    result = []
+    for req in candidates:
+        step = next(
+            (
+                s
+                for s in steps_by_request.get(req.id, [])
+                if s.step_index == req.current_step_index
+            ),
+            None,
         )
-        .first()
-    )
-    if step is None:
-        return False
-    resolved = _resolve_step_user(db, req, step)
-    if resolved == user.id:
-        return True
-    # Fallback: if seat unassigned, any user holding that role can act
-    return resolved is None and user.role == step.role
+        if step is None:
+            continue
+        if step.assigned_user_id:
+            resolved = step.assigned_user_id
+        else:
+            key = (
+                step.role,
+                req.requester_department_id,
+                req.requester_region_id,
+                req.project_owner_department_id,
+            )
+            if key not in resolve_cache:
+                resolve_cache[key] = resolve_role_to_user(
+                    role=step.role,
+                    db=db,
+                    requester_dept_id=req.requester_department_id,
+                    requester_region_id=req.requester_region_id,
+                    project_owner_dept_id=req.project_owner_department_id,
+                )
+            resolved = resolve_cache[key]
+        # Fallback: if seat unassigned, any user holding that role can act
+        if resolved == user.id or (resolved is None and user.role == step.role):
+            result.append(req)
+    return result
 
 
 def _check_approver(db: Session, req: Request, user: User) -> ApprovalStep:
@@ -284,12 +345,11 @@ def list_requests(
     if view == "pending":
         requests = [
             r
-            for r in requests
-            if _is_pending_for(db, r, current_user)
-            and r.requested_by_id != current_user.id
+            for r in _filter_pending(db, requests, current_user)
+            if r.requested_by_id != current_user.id
         ]
 
-    items = [_build_request_out(db, r) for r in requests]
+    items = _build_requests_out(db, requests)
     return RequestListResponse(data=items, meta={"total": len(items)})
 
 
@@ -313,14 +373,15 @@ def get_summary(
     if type and type != "all":
         query = query.filter(Request.type == type)
 
-    requests = query.all()
+    # get_effective_amount() reads .line_items for memo requests — eager-load
+    # it here so that doesn't lazy-load one query per memo row below.
+    requests = query.options(selectinload(Request.line_items)).all()
 
     if view == "pending":
         requests = [
             r
-            for r in requests
-            if _is_pending_for(db, r, current_user)
-            and r.requested_by_id != current_user.id
+            for r in _filter_pending(db, requests, current_user)
+            if r.requested_by_id != current_user.id
         ]
 
     counts: dict[str, int] = {
@@ -387,7 +448,13 @@ def get_period_report_pdf(
             < datetime.combine(end + timedelta(days=1), datetime.min.time())
         )
 
-    requests = query.order_by(Request.closed_at).all()
+    # get_effective_amount() reads .line_items for memo requests — eager-load
+    # it here so the report's totals don't lazy-load one query per memo row.
+    requests = (
+        query.options(selectinload(Request.line_items))
+        .order_by(Request.closed_at)
+        .all()
+    )
 
     period_label = (
         f"{from_date or 'inception'} to {to_date or 'present'} · status: {status}"
@@ -567,6 +634,11 @@ def create_request(
         # memo
         memo_body=payload.memo_body,
         memo_cc=payload.memo_cc,
+        memo_subtype=payload.memo_subtype,
+        memo_to=payload.memo_to,
+        memo_thru=payload.memo_thru,
+        memo_ref_no=payload.memo_ref_no,
+        vat_inclusive=payload.vat_inclusive,
     )
     db.add(req)
     db.flush()
