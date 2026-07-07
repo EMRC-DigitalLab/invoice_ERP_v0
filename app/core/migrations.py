@@ -90,6 +90,12 @@ _STATEMENTS = [
     # fixed-list pick (Regulatory, F&A, etc.), not tied to the Department
     # org-directory table/routing.
     "ALTER TABLE requests ADD COLUMN IF NOT EXISTS requesting_department VARCHAR;",
+    # Memo Request — a new request type with a narrative body + optional CC
+    # line, plus a variable-length officer/line-items table (memo_line_items,
+    # a new table created by create_all()) rather than fixed columns.
+    "ALTER TABLE requests ADD COLUMN IF NOT EXISTS memo_body VARCHAR;",
+    "ALTER TABLE requests ADD COLUMN IF NOT EXISTS memo_cc VARCHAR;",
+    "CREATE INDEX IF NOT EXISTS ix_memo_line_items_request_id ON memo_line_items (request_id);",
 ]
 
 

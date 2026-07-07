@@ -70,4 +70,13 @@ def get_effective_amount(req) -> float:
         return float(getattr(req, "amount", None) or 0)
     if req_type == "proposal":
         return float(getattr(req, "amount_proposed", None) or 0)
+    if req_type == "memo":
+        # Works for both the Pydantic payload (line_items = list[MemoLineItemIn],
+        # at creation time) and the persisted ORM Request (line_items relationship).
+        items = getattr(req, "line_items", None) or []
+        return sum(
+            float(getattr(item, "nights", 0) or 0)
+            * float(getattr(item, "rate_per_night", 0) or 0)
+            for item in items
+        )
     return 0.0
