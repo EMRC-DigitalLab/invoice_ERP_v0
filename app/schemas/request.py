@@ -100,6 +100,7 @@ class RequestOut(BaseModel):
     bank_name: str | None = None
     account_name: str | None = None
     account_no: str | None = None
+    requesting_department: str | None = None
 
     # proposal
     purpose: str | None = None
@@ -164,6 +165,7 @@ class CreateRequestPayload(BaseModel):
     bank_name: str | None = None
     account_name: str | None = None
     account_no: str | None = None
+    requesting_department: str | None = None
 
     # proposal
     purpose: str | None = None

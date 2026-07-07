@@ -540,6 +540,7 @@ def create_request(
         bank_name=payload.bank_name,
         account_name=payload.account_name,
         account_no=payload.account_no,
+        requesting_department=payload.requesting_department,
         # proposal
         purpose=payload.purpose,
         amount_proposed=payload.amount_proposed,

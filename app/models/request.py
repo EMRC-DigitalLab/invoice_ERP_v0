@@ -70,6 +70,9 @@ class Request(Base):
     bank_name = Column(String, nullable=True)
     account_name = Column(String, nullable=True)
     account_no = Column(String, nullable=True)
+    # Free-text pick from a fixed list of org units (Regulatory, F&A, etc.) —
+    # deliberately not tied to the Department org-directory table/routing.
+    requesting_department = Column(String, nullable=True)
 
     # proposal fields
     purpose = Column(String, nullable=True)

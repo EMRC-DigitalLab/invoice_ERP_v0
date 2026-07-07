@@ -223,6 +223,11 @@ def _build_fields(req: Request, amount: float) -> list[tuple[str, str, str | Non
         )
         return [
             ("Department", req.department or "—", None),
+            (
+                "Requesting Department",
+                getattr(req, "requesting_department", None) or "—",
+                "Select from list",
+            ),
             (detail_label, detail_value, None),
             ("Amount", _fmt_amount(amount, req.currency), None),
             ("Bank Name", getattr(req, "bank_name", None) or "—", None),
@@ -235,6 +240,11 @@ def _build_fields(req: Request, amount: float) -> list[tuple[str, str, str | Non
     if req.type == "proposal":
         return [
             ("Department", req.department or "—", None),
+            (
+                "Requesting Department",
+                getattr(req, "requesting_department", None) or "—",
+                "Select from list",
+            ),
             ("Purpose", getattr(req, "purpose", None) or "—", None),
             ("Amount Proposed", _fmt_amount(amount, req.currency), None),
             ("Bank Name", getattr(req, "bank_name", None) or "—", None),

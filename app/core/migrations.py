@@ -86,6 +86,10 @@ _STATEMENTS = [
     # MD is now a proper org-wide singular seat (like CFO/Finance Controller),
     # resolved the same way rather than only reachable via ad-hoc "Forward".
     "ALTER TABLE org_settings ADD COLUMN IF NOT EXISTS md_user_id VARCHAR;",
+    # "Requesting Department" on Cash Advance / State of Expense / IOU — a
+    # fixed-list pick (Regulatory, F&A, etc.), not tied to the Department
+    # org-directory table/routing.
+    "ALTER TABLE requests ADD COLUMN IF NOT EXISTS requesting_department VARCHAR;",
 ]
 
 
