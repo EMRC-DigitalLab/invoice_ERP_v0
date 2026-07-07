@@ -22,7 +22,7 @@ from app.schemas.purchase_order import (
     PurchaseOrderOut,
     UpdatePurchaseOrderPayload,
 )
-from app.services.po_ledger import committed_amount_for_po
+from app.services.po_ledger import committed_amount_for_po, committed_amounts_for_pos
 
 router = APIRouter(prefix="/purchase-orders", tags=["purchase-orders"])
 
@@ -37,9 +37,8 @@ _CURRENCY_LABELS = {
 
 
 def _to_out(
-    db: Session, po: PurchaseOrder, dept_names: dict[str, str]
+    po: PurchaseOrder, dept_names: dict[str, str], committed: float
 ) -> PurchaseOrderOut:
-    committed = committed_amount_for_po(db, po.id)
     return PurchaseOrderOut(
         id=po.id,
         po_number=po.po_number,
@@ -105,7 +104,8 @@ def list_purchase_orders(
         .all()
     )
     dept_names = {d.id: d.name for d in db.query(Department).all()}
-    items = [_to_out(db, po, dept_names) for po in purchase_orders]
+    committed_by_po = committed_amounts_for_pos(db, [po.id for po in purchase_orders])
+    items = [_to_out(po, dept_names, committed_by_po[po.id]) for po in purchase_orders]
     return PurchaseOrderListResponse(
         data=items, meta={"total": total, "page": page, "pageSize": page_size}
     )
@@ -150,7 +150,8 @@ def create_purchase_order(
     db.refresh(po)
 
     dept_names = {department.id: department.name}
-    return PurchaseOrderDetailResponse(data=_to_out(db, po, dept_names))
+    committed = committed_amount_for_po(db, po.id)
+    return PurchaseOrderDetailResponse(data=_to_out(po, dept_names, committed))
 
 
 @router.get("/export/csv")
@@ -171,6 +172,7 @@ def export_purchase_orders_csv(
         )
     purchase_orders = query.order_by(PurchaseOrder.created_at.desc()).all()
     dept_names = {d.id: d.name for d in db.query(Department).all()}
+    committed_by_po = committed_amounts_for_pos(db, [po.id for po in purchase_orders])
 
     buf = StringIO()
     writer = csv.writer(buf)
@@ -192,7 +194,7 @@ def export_purchase_orders_csv(
         ]
     )
     for po in purchase_orders:
-        committed = committed_amount_for_po(db, po.id)
+        committed = committed_by_po[po.id]
         writer.writerow(
             [
                 po.po_number,
@@ -342,7 +344,8 @@ def get_purchase_order(
     if po is None:
         raise HTTPException(status_code=404, detail="Purchase order not found.")
     dept_names = {d.id: d.name for d in db.query(Department).all()}
-    return PurchaseOrderDetailResponse(data=_to_out(db, po, dept_names))
+    committed = committed_amount_for_po(db, po.id)
+    return PurchaseOrderDetailResponse(data=_to_out(po, dept_names, committed))
 
 
 @router.patch("/{po_id}", response_model=PurchaseOrderDetailResponse)
@@ -394,7 +397,8 @@ def update_purchase_order(
     db.commit()
     db.refresh(po)
     dept_names = {d.id: d.name for d in db.query(Department).all()}
-    return PurchaseOrderDetailResponse(data=_to_out(db, po, dept_names))
+    committed = committed_amount_for_po(db, po.id)
+    return PurchaseOrderDetailResponse(data=_to_out(po, dept_names, committed))
 
 
 @router.delete("/{po_id}", status_code=204)

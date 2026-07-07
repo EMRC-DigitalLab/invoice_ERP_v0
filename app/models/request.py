@@ -86,8 +86,17 @@ class Request(Base):
 
     # memo fields — narrative body + optional CC line, mirroring the paper
     # memo format. Line items live in MemoLineItem (variable-length table).
+    # memo_subtype distinguishes the two paper memo shapes: staff_accommodation
+    # (narrative + officer line-items table) and vendor_payment (narrative +
+    # a single beneficiary payment, reusing the shared amount/bank_name/
+    # account_name/account_no columns above rather than duplicating them).
     memo_body = Column(String, nullable=True)
     memo_cc = Column(String, nullable=True)
+    memo_subtype = Column(String, nullable=True)  # staff_accommodation | vendor_payment
+    memo_to = Column(String, nullable=True)
+    memo_thru = Column(String, nullable=True)
+    memo_ref_no = Column(String, nullable=True)
+    vat_inclusive = Column(Boolean, nullable=True)
     # viewonly: inserts/deletes are still handled explicitly in the request
     # creation endpoint, not via cascading — this is just for reads (summary
     # totals, PDF export) so get_effective_amount() works on the ORM object.

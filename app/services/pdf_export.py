@@ -278,8 +278,28 @@ def _build_fields(req: Request, amount: float) -> list[tuple[str, str, str | Non
             ("Created", _fmt_date(req.created_at), None),
         ]
 
+    if req.type == "memo" and req.memo_subtype == "vendor_payment":
+        return [
+            ("To", getattr(req, "memo_to", None) or "—", None),
+            ("Thru", getattr(req, "memo_thru", None) or "—", None),
+            ("Ref No", getattr(req, "memo_ref_no", None) or "—", None),
+            ("Amount", _fmt_amount(amount, req.currency), None),
+            (
+                "VAT Inclusive",
+                "Yes" if getattr(req, "vat_inclusive", False) else "No",
+                None,
+            ),
+            ("Beneficiary Name", getattr(req, "account_name", None) or "—", None),
+            ("Bank Name", getattr(req, "bank_name", None) or "—", None),
+            ("Account Number", getattr(req, "account_no", None) or "—", None),
+            ("Requested By", req.requested_by, None),
+            ("Created", _fmt_date(req.created_at), None),
+        ]
+
     if req.type == "memo":
         return [
+            ("To", getattr(req, "memo_to", None) or "—", None),
+            ("Thru", getattr(req, "memo_thru", None) or "—", None),
             ("CC", req.memo_cc or "—", None),
             ("Requested By", req.requested_by, None),
             ("Created", _fmt_date(req.created_at), None),
