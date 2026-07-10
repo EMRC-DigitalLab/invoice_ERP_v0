@@ -1,3 +1,4 @@
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -10,6 +11,16 @@ from app.core.database import Base, SessionLocal, engine
 from app.core.migrations import run_pending_migrations
 from app.core.scheduler import start_scheduler, stop_scheduler
 from app.middleware.request_logger import RequestLoggingMiddleware
+
+# Without this, logger.info()/.warning() calls anywhere in the app (e.g. the
+# scheduler in app/core/scheduler.py) go nowhere — Python's root logger has
+# no handler by default and silently drops anything below WARNING. This
+# doesn't affect SQLAlchemy's own query logging (echo=settings.DEBUG in
+# app/core/database.py), which configures its logger independently.
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
 
 
 @asynccontextmanager
