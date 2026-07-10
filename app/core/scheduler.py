@@ -14,10 +14,19 @@ scheduler = BackgroundScheduler(timezone="UTC")
 def _run_pending_approval_reminders() -> None:
     db = SessionLocal()
     try:
-        for user, count in run_reminder_sweep(db):
-            if count >= 1:
+        for result in run_reminder_sweep(db):
+            if result.sent:
                 logger.info(
-                    "Pending-approval sweep: %s has %d pending", user.email, count
+                    "Pending-approval reminder sent to %s (%d pending, resend_id=%s)",
+                    result.sent_to,
+                    result.count,
+                    result.resend_id,
+                )
+            elif result.error:
+                logger.warning(
+                    "Pending-approval reminder failed for %s: %s",
+                    result.user.email,
+                    result.error,
                 )
     finally:
         db.close()

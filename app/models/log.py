@@ -25,6 +25,32 @@ class RequestLog(Base):
     error = Column(String, nullable=True)
 
 
+class ReminderLog(Base):
+    """One row per (job, recipient) check on every scheduled/manual sweep —
+    including when nothing was sent — so "did the reminder job run and what
+    did it decide" is answerable from the database the same way HTTP request
+    history already is, instead of only living in container stdout."""
+
+    __tablename__ = "reminder_logs"
+
+    id = Column(String, primary_key=True)
+    timestamp = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+        index=True,
+    )
+    job = Column(String, nullable=False, index=True)
+    recipient_user_id = Column(String, nullable=False, index=True)
+    recipient_email = Column(String, nullable=False)
+    pending_count = Column(Integer, nullable=False)
+    threshold = Column(Integer, nullable=False)
+    sent = Column(Boolean, nullable=False, index=True)
+    sent_to = Column(String, nullable=True)
+    resend_id = Column(String, nullable=True)
+    error = Column(String, nullable=True)
+
+
 class LogAccessKey(Base):
     __tablename__ = "log_access_keys"
 

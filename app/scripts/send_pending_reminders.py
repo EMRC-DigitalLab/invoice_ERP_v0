@@ -23,15 +23,17 @@ def main() -> None:
             print("No users found for the configured reminder roles.")
             return
 
-        for user, count in results:
-            if count >= settings.PENDING_REMINDER_THRESHOLD:
-                recipient = settings.PENDING_REMINDER_TEST_EMAIL or user.email
+        for result in results:
+            user = result.user
+            if result.sent:
                 print(
-                    f"{user.name} ({user.email}): {count} pending — reminder sent to {recipient}."
+                    f"{user.name} ({user.email}): {result.count} pending — reminder sent to {result.sent_to} (resend_id={result.resend_id})."
                 )
+            elif result.error:
+                print(f"{user.name} ({user.email}): FAILED — {result.error}")
             else:
                 print(
-                    f"{user.name} ({user.email}): {count} pending — under threshold ({settings.PENDING_REMINDER_THRESHOLD}), no email sent."
+                    f"{user.name} ({user.email}): {result.count} pending — under threshold ({settings.PENDING_REMINDER_THRESHOLD}), no email sent."
                 )
     finally:
         db.close()
