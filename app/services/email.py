@@ -232,6 +232,53 @@ def send_clarification_received_email(
     )
 
 
+def send_pending_approvals_reminder_email(
+    to: str,
+    recipient_name: str,
+    requests: list[dict],
+    app_link: str,
+) -> dict:
+    """Digest of everything still sitting in one approver's queue — sent when
+    their backlog crosses a threshold, since nothing currently notifies an
+    approver the moment a request first lands on them (only the final
+    approve/reject decision emails the requester/prior approvers)."""
+    rows = "".join(
+        f"<tr>"
+        f'<td style="padding:10px 12px;border-top:1px solid {_BORDER};font-size:13px;font-weight:600;color:{_TEXT};">{_esc(r["reference"])}</td>'
+        f'<td style="padding:10px 12px;border-top:1px solid {_BORDER};font-size:13px;color:{_TEXT};">{_esc(r["subject"])}</td>'
+        f'<td style="padding:10px 12px;border-top:1px solid {_BORDER};font-size:13px;color:{_MUTED};">{_esc(r["requested_by"])}</td>'
+        f'<td style="padding:10px 12px;border-top:1px solid {_BORDER};font-size:13px;color:{_MUTED};white-space:nowrap;">{_esc(r["created_at"])}</td>'
+        f'<td style="padding:10px 12px;border-top:1px solid {_BORDER};font-size:13px;font-weight:600;color:{_TEXT};text-align:right;white-space:nowrap;">{_esc(r["amount"])}</td>'
+        f"</tr>"
+        for r in requests
+    )
+    table = (
+        f'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
+        f'style="border:1px solid {_BORDER};border-radius:8px;margin:16px 0 20px;overflow:hidden;">'
+        f'<tr style="background-color:{_SURFACE};">'
+        f'<td style="padding:10px 12px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:{_MUTED};">Reference</td>'
+        f'<td style="padding:10px 12px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:{_MUTED};">Subject</td>'
+        f'<td style="padding:10px 12px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:{_MUTED};">Requested by</td>'
+        f'<td style="padding:10px 12px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:{_MUTED};">Created</td>'
+        f'<td style="padding:10px 12px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:{_MUTED};text-align:right;">Amount</td>'
+        f"</tr>{rows}</table>"
+    )
+    body = f"""
+    <h2 style="margin:0 0 12px;font-size:18px;color:{_TEXT};">Hi {_esc(recipient_name)},</h2>
+    <p style="margin:0 0 4px;color:{_MUTED};">
+        You have <strong style="color:{_TEXT};">{len(requests)} requests</strong> awaiting your review — this is a
+        reminder so nothing sits unnoticed in the queue.
+    </p>
+    {table}
+    {_button("Review pending requests", app_link)}
+    """
+    return send_email(
+        to=to,
+        subject=f"Reminder: {len(requests)} requests awaiting your approval",
+        html=_shell(f"{len(requests)} requests awaiting your approval", body),
+    )
+
+
 _DECISION_COLORS = {"approved": "#059669", "rejected": "#dc2626"}
 
 

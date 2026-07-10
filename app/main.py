@@ -8,6 +8,7 @@ from app.api.v1.router import router as v1_router
 from app.core.config import settings
 from app.core.database import Base, SessionLocal, engine
 from app.core.migrations import run_pending_migrations
+from app.core.scheduler import start_scheduler, stop_scheduler
 from app.middleware.request_logger import RequestLoggingMiddleware
 
 
@@ -17,7 +18,9 @@ async def lifespan(_app: FastAPI):
 
     Base.metadata.create_all(bind=engine)
     run_pending_migrations(engine)
+    start_scheduler()
     yield
+    stop_scheduler()
 
 
 app = FastAPI(
