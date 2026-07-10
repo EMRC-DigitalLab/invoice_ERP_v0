@@ -20,7 +20,7 @@ from app.schemas.clarification import (
     ClarificationPublicResponse,
     SeekClarificationPayload,
 )
-from app.services.approval_routing import check_approver
+from app.services.approval_routing import can_view_request, check_approver
 from app.services.email import (
     send_clarification_received_email,
     send_clarification_request_email,
@@ -104,9 +104,13 @@ def seek_clarification(
 def list_clarifications(
     request_id: str,
     db: Session = Depends(get_db),
-    _current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
-    get_or_404(db, request_id)
+    req = get_or_404(db, request_id)
+    if not can_view_request(db, req, current_user):
+        raise HTTPException(
+            status_code=403, detail="You do not have access to this request."
+        )
     items = (
         db.query(ClarificationRequest)
         .filter(ClarificationRequest.request_id == request_id)

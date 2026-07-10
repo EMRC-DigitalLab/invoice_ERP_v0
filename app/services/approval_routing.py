@@ -5,6 +5,12 @@ from app.models.request import ApprovalStep, Request
 from app.models.user import User
 from app.services.org_resolver import resolve_role_to_user
 
+# Roles with organisation-wide oversight may browse or open every request in
+# the system; everyone else may only see requests they submitted or are (or
+# were) a participant in the approval chain for. Mirrors the frontend's
+# OVERSIGHT_ROLES (lib/roles.ts) — kept in sync deliberately.
+OVERSIGHT_ROLES = {"finance_control", "finance_controller", "cfo"}
+
 
 def resolve_step_user(db: Session, req: Request, step: ApprovalStep) -> str | None:
     """A "Forward"-created step is pinned to one specific person; otherwise
@@ -74,6 +80,32 @@ def filter_pending(db: Session, requests: list[Request], user: User) -> list[Req
         if resolved == user.id or (resolved is None and user.role == step.role):
             result.append(req)
     return result
+
+
+def can_view_request(db: Session, req: Request, user: User) -> bool:
+    """Who may read a single request's full detail: the requester, an
+    oversight role/admin, or anyone who is (or was) a participant in its
+    approval chain. NOT just any authenticated user — a request's financial
+    and personal details must not be readable by unrelated staff."""
+    if user.is_admin or user.role in OVERSIGHT_ROLES:
+        return True
+    if req.requested_by_id == user.id:
+        return True
+
+    steps = db.query(ApprovalStep).filter(ApprovalStep.request_id == req.id).all()
+    if any(s.acted_by == user.id or s.assigned_user_id == user.id for s in steps):
+        return True
+
+    if req.status == "in_review" and req.current_step_index >= 0:
+        current = next(
+            (s for s in steps if s.step_index == req.current_step_index), None
+        )
+        if current is not None:
+            resolved = resolve_step_user(db, req, current)
+            if resolved == user.id or (resolved is None and user.role == current.role):
+                return True
+
+    return False
 
 
 def check_approver(db: Session, req: Request, user: User) -> ApprovalStep:

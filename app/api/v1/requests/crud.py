@@ -25,7 +25,11 @@ from app.schemas.request import (
     SummaryResponse,
 )
 from app.services.approval_chains import build_chain, get_effective_amount
-from app.services.approval_routing import filter_pending
+from app.services.approval_routing import (
+    OVERSIGHT_ROLES,
+    can_view_request,
+    filter_pending,
+)
 from app.services.pdf_export import generate_period_report_pdf, generate_request_pdf
 from app.services.po_ledger import committed_amount_for_po
 from app.services.request_serializer import build_request_out, build_requests_out
@@ -45,11 +49,18 @@ def list_requests(
 ):
     query = db.query(Request)
 
+    is_oversight = current_user.is_admin or current_user.role in OVERSIGHT_ROLES
     if view == "mine":
         query = query.filter(Request.requested_by_id == current_user.id)
     elif view == "pending":
         query = query.filter(Request.status == "in_review")
-    # "all" → no extra filter
+    elif view == "all" and not is_oversight:
+        # Only oversight roles/admins may browse every request in the system —
+        # anyone else asking for "all" is scoped down to their own requests
+        # instead of being shown other staff's requests (defense-in-depth:
+        # the frontend should already avoid requesting "all" for these roles).
+        query = query.filter(Request.requested_by_id == current_user.id)
+    # "all" for an oversight user → no extra filter
 
     if status and status != "all":
         query = query.filter(Request.status == status)
@@ -79,10 +90,13 @@ def get_summary(
 ):
     query = db.query(Request)
 
+    is_oversight = current_user.is_admin or current_user.role in OVERSIGHT_ROLES
     if view == "mine":
         query = query.filter(Request.requested_by_id == current_user.id)
     elif view == "pending":
         query = query.filter(Request.status == "in_review")
+    elif view == "all" and not is_oversight:
+        query = query.filter(Request.requested_by_id == current_user.id)
 
     if status and status != "all":
         query = query.filter(Request.status == status)
@@ -191,6 +205,10 @@ def get_request(
     current_user: User = Depends(get_current_user),
 ):
     req = get_or_404(db, request_id)
+    if not can_view_request(db, req, current_user):
+        raise HTTPException(
+            status_code=403, detail="You do not have access to this request."
+        )
     return RequestDetailResponse(data=build_request_out(db, req))
 
 
@@ -201,6 +219,10 @@ def get_request_pdf(
     current_user: User = Depends(get_current_user),
 ):
     req = get_or_404(db, request_id)
+    if not can_view_request(db, req, current_user):
+        raise HTTPException(
+            status_code=403, detail="You do not have access to this request."
+        )
     steps = (
         db.query(ApprovalStep)
         .filter(ApprovalStep.request_id == req.id)
