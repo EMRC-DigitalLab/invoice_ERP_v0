@@ -38,6 +38,15 @@ class Settings(BaseSettings):
     # In-app notifications
     NOTIFICATIONS_PAGE_SIZE: int = 20
 
+    # Pending-approval reminder digest (app/core/scheduler.py) — nothing else
+    # notifies an approver when a request first lands in their queue, only on
+    # the final decision, so a backlog can otherwise sit unnoticed.
+    PENDING_REMINDER_THRESHOLD: int = 15
+    # When set, reminder emails go here instead of the real approver — set
+    # this in an environment while testing so real approvers aren't emailed;
+    # leave unset for the real recipient to receive it.
+    PENDING_REMINDER_TEST_EMAIL: str | None = None
+
     # JWT auth — short-lived access token, longer-lived refresh token that
     # exchanges for a new access token via POST /auth/refresh.
     JWT_SECRET: str
