@@ -29,6 +29,7 @@ class UserOut(BaseModel):
     department_id: str | None = None
     region_id: str | None = None
     is_admin: bool
+    must_change_password: bool
 
 
 class AuthData(BaseModel):
@@ -41,3 +42,29 @@ class AuthData(BaseModel):
 
 class LoginResponse(BaseModel):
     data: AuthData
+
+
+class ChangePasswordRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
+
+    current_password: str
+    new_password: str
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+
+class ResetPasswordRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
+
+    token: str
+    new_password: str
+
+
+class MessageResponse(BaseModel):
+    message: str
+
+
+class ChangePasswordResponse(BaseModel):
+    data: UserOut

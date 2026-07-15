@@ -9,7 +9,7 @@ from app.models.request import (
     MemoLineItem,
     Request,
 )
-from app.models.user import User
+from app.models.user import PasswordResetToken, User
 
 __all__ = [
     "ApprovalStep",
@@ -21,6 +21,7 @@ __all__ = [
     "LogAccessKey",
     "MemoLineItem",
     "OrgSettings",
+    "PasswordResetToken",
     "PurchaseOrder",
     "Region",
     "ReminderLog",

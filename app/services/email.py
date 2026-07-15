@@ -138,6 +138,24 @@ def send_welcome_email(
     )
 
 
+def send_password_reset_email(to: str, name: str, link: str) -> dict:
+    body = f"""
+    <h2 style="margin:0 0 12px;font-size:18px;color:{_TEXT};">Reset your password</h2>
+    <p style="margin:0 0 20px;color:{_MUTED};">
+        Hi {_esc(name)}, we received a request to reset your password. Click the button below to choose a new one.
+    </p>
+    {_button("Reset password", link)}
+    <p style="margin:24px 0 0;font-size:12px;color:{_MUTED};">
+        This link expires in 1 hour and can only be used once. If you didn&rsquo;t request this, you can safely ignore this email.
+    </p>
+    """
+    return send_email(
+        to=to,
+        subject="Reset your password — IBEDC Invoicing Platform",
+        html=_shell("Reset your password", body),
+    )
+
+
 def send_clarification_request_email(
     to: str,
     cc: list[str] | None,

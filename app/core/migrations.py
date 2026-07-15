@@ -148,6 +148,13 @@ _STATEMENTS = [
     "ALTER TABLE requests ADD COLUMN IF NOT EXISTS memo_thru VARCHAR;",
     "ALTER TABLE requests ADD COLUMN IF NOT EXISTS memo_ref_no VARCHAR;",
     "ALTER TABLE requests ADD COLUMN IF NOT EXISTS vat_inclusive BOOLEAN;",
+    # Forces a password-change prompt for every existing user too, since all
+    # of them are currently on an admin-set initial password they've never
+    # personally chosen — new users get this via the column's Python default.
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN NOT NULL DEFAULT TRUE;",
+    # password_reset_tokens is a new table, created by create_all(); this just
+    # adds the lookup index create_all() only sets up at table-creation time.
+    "CREATE UNIQUE INDEX IF NOT EXISTS ix_password_reset_tokens_token ON password_reset_tokens (token);",
 ]
 
 
