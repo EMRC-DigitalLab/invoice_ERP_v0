@@ -46,6 +46,7 @@ class OrgSettingsOut(BaseModel):
     procurement_user_id: str | None = None
     cfo_user_id: str | None = None
     md_user_id: str | None = None
+    cfo_letters_uploader_id: str | None = None
 
 
 # ── Input schemas ──────────────────────────────────────────────────────────────
@@ -122,6 +123,7 @@ class UpdateOrgSettings(BaseModel):
     procurement_user_id: str | None = None
     cfo_user_id: str | None = None
     md_user_id: str | None = None
+    cfo_letters_uploader_id: str | None = None
 
 
 # ── Response envelope schemas ──────────────────────────────────────────────────

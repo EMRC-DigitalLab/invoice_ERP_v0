@@ -56,3 +56,7 @@ class OrgSettings(Base):
     procurement_user_id = Column(String, ForeignKey("users.id"), nullable=True)
     cfo_user_id = Column(String, ForeignKey("users.id"), nullable=True)
     md_user_id = Column(String, ForeignKey("users.id"), nullable=True)
+    # Sole person allowed to upload CFO letters (e.g. Nifesimi) — an
+    # org-wide singular seat like the others above, not a role, since it's
+    # one specific named person's responsibility per the CFO's request.
+    cfo_letters_uploader_id = Column(String, ForeignKey("users.id"), nullable=True)
