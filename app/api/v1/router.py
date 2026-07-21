@@ -2,6 +2,7 @@ from fastapi import APIRouter
 
 from app.api.v1 import (
     auth,
+    cfo_letters,
     logs,
     notifications,
     org,
@@ -25,3 +26,4 @@ router.include_router(purchase_orders.router)
 router.include_router(uploads.router)
 router.include_router(notifications.router)
 router.include_router(logs.router)
+router.include_router(cfo_letters.router)

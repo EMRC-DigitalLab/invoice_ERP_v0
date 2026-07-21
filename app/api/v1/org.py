@@ -237,6 +237,7 @@ def delete_staff(
             "procurement_user_id",
             "cfo_user_id",
             "md_user_id",
+            "cfo_letters_uploader_id",
         ):
             if getattr(org_settings, field) == user_id:
                 setattr(org_settings, field, None)

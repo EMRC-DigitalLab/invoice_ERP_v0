@@ -4,10 +4,9 @@ from datetime import datetime, timezone
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from app.core.config import settings
+from app.models.notification import PendingDecisionEmail
 from app.models.request import ApprovalStep, AuditEntry, Request
 from app.models.user import User
-from app.services.email import send_request_decision_email
 
 ROLE_LABELS: dict[str, str] = {
     "staff": "Staff",
@@ -62,9 +61,12 @@ def notify_decision(
     decided_by: User,
     comment: str | None,
 ) -> None:
-    """Emails the requester and every prior approver once a request reaches a
-    final decision. Best-effort: a failed/misconfigured email send must never
-    fail the approval/rejection itself, so errors are swallowed here."""
+    """Queues a "your request was approved/rejected" notification for the
+    requester and every prior approver, one row per recipient. NOT sent
+    immediately — app/services/decision_digest.py sweeps these on a
+    schedule and batches everything for the same recipient into a single
+    digest email, so bulk-approving N requests doesn't fire N separate
+    emails (Resend's free tier is volume-limited)."""
     acted_user_ids = {
         s.acted_by
         for s in db.query(ApprovalStep).filter(ApprovalStep.request_id == req.id).all()
@@ -75,21 +77,23 @@ def notify_decision(
         db.query(User).filter(User.id.in_(recipient_ids)).all() if recipient_ids else []
     )
 
-    app_link = f"{settings.FRONTEND_URL}/dashboard/invoices/{req.id}"
     decided_by_role_label = ROLE_LABELS.get(decided_by.role, decided_by.role)
 
     for user in recipients:
-        try:
-            send_request_decision_email(
-                to=user.email,
-                recipient_name=user.name,
-                decision=decision,
+        db.add(
+            PendingDecisionEmail(
+                id=uuid.uuid4().hex,
+                request_id=req.id,
                 request_reference=req.reference or req.id,
                 request_subject=req.subject or "",
+                decision=decision,
                 decided_by_name=decided_by.name,
                 decided_by_role_label=decided_by_role_label,
-                app_link=app_link,
                 comment=comment,
+                recipient_user_id=user.id,
+                recipient_email=user.email,
+                recipient_name=user.name,
             )
-        except Exception:
-            pass
+        )
+    if recipients:
+        db.commit()

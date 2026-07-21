@@ -155,6 +155,12 @@ _STATEMENTS = [
     # password_reset_tokens is a new table, created by create_all(); this just
     # adds the lookup index create_all() only sets up at table-creation time.
     "CREATE UNIQUE INDEX IF NOT EXISTS ix_password_reset_tokens_token ON password_reset_tokens (token);",
+    # CFO Letters — Nifesimi uploads a letter, the CFO reviews and replies.
+    # cfo_letters/cfo_letter_comments are new tables, created by create_all();
+    # this adds the org_settings seat + lookup index create_all() only sets
+    # up at table-creation time.
+    "ALTER TABLE org_settings ADD COLUMN IF NOT EXISTS cfo_letters_uploader_id VARCHAR;",
+    "CREATE INDEX IF NOT EXISTS ix_cfo_letter_comments_letter_id ON cfo_letter_comments (letter_id);",
 ]
 
 

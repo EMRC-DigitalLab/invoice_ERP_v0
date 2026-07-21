@@ -1,5 +1,7 @@
+from app.models.cfo_letter import CfoLetter, CfoLetterComment
 from app.models.clarification import ClarificationRequest
 from app.models.log import LogAccessKey, ReminderLog, RequestLog
+from app.models.notification import PendingDecisionEmail
 from app.models.org import Department, DepartmentRegionAssignment, OrgSettings, Region
 from app.models.purchase_order import PurchaseOrder
 from app.models.request import (
@@ -15,6 +17,8 @@ __all__ = [
     "ApprovalStep",
     "Attachment",
     "AuditEntry",
+    "CfoLetter",
+    "CfoLetterComment",
     "ClarificationRequest",
     "Department",
     "DepartmentRegionAssignment",
@@ -22,6 +26,7 @@ __all__ = [
     "MemoLineItem",
     "OrgSettings",
     "PasswordResetToken",
+    "PendingDecisionEmail",
     "PurchaseOrder",
     "Region",
     "ReminderLog",
