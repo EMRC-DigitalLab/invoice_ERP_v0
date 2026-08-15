@@ -338,7 +338,9 @@ def batch_upload_purchase_orders(
             date_issued=_parse_cell_date(date_issued_raw),
             status=status_value,
             job_type=_parse_job_type(str(job_type_raw) if job_type_raw else None),
-            contractor_address=str(contractor_address).strip() if contractor_address else None,
+            contractor_address=str(contractor_address).strip()
+            if contractor_address
+            else None,
             created_by_id=current_user.id,
             created_at=now,
         )
