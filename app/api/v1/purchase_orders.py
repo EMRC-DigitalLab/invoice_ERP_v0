@@ -35,6 +35,11 @@ _CURRENCY_LABELS = {
     "gbp": "GBP",
 }
 
+_JOB_TYPE_LABELS = {
+    "work": "work",
+    "supply": "supply",
+}
+
 
 def _to_out(
     po: PurchaseOrder, dept_names: dict[str, str], committed: float
@@ -229,6 +234,12 @@ def _parse_currency(raw: str | None) -> str | None:
     return _CURRENCY_LABELS.get(raw.strip().lower(), raw.strip().upper())
 
 
+def _parse_job_type(raw: str | None) -> str | None:
+    if not raw:
+        return None
+    return _JOB_TYPE_LABELS.get(raw.strip().lower())
+
+
 def _parse_cell_date(value) -> str | None:
     if value is None or value == "":
         return None
@@ -281,7 +292,9 @@ def batch_upload_purchase_orders(
             description,
             date_issued_raw,
             status_raw,
-        ) = (list(row) + [None] * 8)[:8]
+            job_type_raw,
+            contractor_address,
+        ) = (list(row) + [None] * 10)[:10]
 
         if not po_number and not contractor_name:
             continue  # blank row
@@ -324,6 +337,8 @@ def batch_upload_purchase_orders(
             description=str(description).strip() if description else None,
             date_issued=_parse_cell_date(date_issued_raw),
             status=status_value,
+            job_type=_parse_job_type(str(job_type_raw) if job_type_raw else None),
+            contractor_address=str(contractor_address).strip() if contractor_address else None,
             created_by_id=current_user.id,
             created_at=now,
         )
