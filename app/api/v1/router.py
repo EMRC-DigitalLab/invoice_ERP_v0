@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from app.api.v1 import (
+    attachments,
     auth,
     cfo_letters,
     logs,
@@ -27,3 +28,4 @@ router.include_router(uploads.router)
 router.include_router(notifications.router)
 router.include_router(logs.router)
 router.include_router(cfo_letters.router)
+router.include_router(attachments.router)
