@@ -311,7 +311,9 @@ def create_request(
                 ),
             )
 
-    currency = po.currency if po else "NGN"
+    # project_payment always inherits the PO's currency; other types (e.g.
+    # memo) may pass their own client-selected currency, defaulting to NGN.
+    currency = po.currency if po else (payload.currency or "NGN")
 
     # Stamp project_owner_department display name server-side
     proj_owner_dept_name = None
