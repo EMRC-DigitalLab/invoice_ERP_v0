@@ -13,7 +13,7 @@ from app.models.request import ApprovalStep, Attachment, Request
 from app.services.approval_chains import get_effective_amount
 
 _ASSETS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets")
-_LOGO_PATH = os.path.join(_ASSETS_DIR, "ibedc-logo.png")
+_LOGO_PATH = os.path.join(_ASSETS_DIR, "kora-logo.png")
 _FONTS_DIR = os.path.join(_ASSETS_DIR, "fonts")
 
 _FONT_REGULAR = "Helvetica"
@@ -431,7 +431,7 @@ def generate_request_pdf(
 
     c.setFont(_FONT_BOLD, 17)
     c.setFillColor(_BRAND)
-    c.drawCentredString(_PAGE_W / 2, y - 26, "IBEDC")
+    c.drawCentredString(_PAGE_W / 2, y - 26, "KORA")
     c.setFont(_FONT_REGULAR, 9)
     c.setFillColor(_SLATE)
     c.drawCentredString(
@@ -457,7 +457,7 @@ def generate_request_pdf(
         _PAGE_W - _MARGIN - 24,
         y - 8,
         _STATUS_LABELS.get(req.status, req.status),
-        "IBEDC",
+        "KORA",
         status_color,
         radius=26,
     )
@@ -660,7 +660,7 @@ def generate_request_pdf(
     c.setFont(_FONT_REGULAR, 6.5)
     c.setFillColor(_MUTED)
     generated = datetime.now(timezone.utc).strftime("%d %b %Y, %I:%M %p UTC")
-    c.drawString(_MARGIN, 22, f"Generated {generated} · IBEDC Invoice ERP")
+    c.drawString(_MARGIN, 22, f"Generated {generated} · Kora Invoice ERP")
 
     c.showPage()
     c.save()
@@ -694,7 +694,7 @@ def _draw_report_header(
 
     c.setFont(_FONT_BOLD, 15)
     c.setFillColor(_BRAND)
-    c.drawCentredString(_PAGE_W / 2, y - 22, "IBEDC")
+    c.drawCentredString(_PAGE_W / 2, y - 22, "KORA")
     c.setFont(_FONT_REGULAR, 8.5)
     c.setFillColor(_SLATE)
     c.drawCentredString(_PAGE_W / 2, y - 34, "Approved Invoices Report")

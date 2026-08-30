@@ -219,7 +219,7 @@ def export_purchase_orders_csv(
         )
 
     filename = (
-        f"IBEDC-purchase-orders-{datetime.now(timezone.utc).date().isoformat()}.csv"
+        f"Kora-purchase-orders-{datetime.now(timezone.utc).date().isoformat()}.csv"
     )
     return Response(
         content=buf.getvalue(),

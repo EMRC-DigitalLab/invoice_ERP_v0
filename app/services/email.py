@@ -64,7 +64,7 @@ def _shell(preheader: str, body_html: str) -> str:
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>IBEDC Invoicing Platform</title>
+    <title>Kora Invoicing Platform</title>
   </head>
   <body style="margin:0;padding:0;background-color:{_SURFACE};font-family:Figtree,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
     <span style="display:none;font-size:1px;color:{_SURFACE};line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;">{_esc(preheader)}</span>
@@ -74,7 +74,7 @@ def _shell(preheader: str, body_html: str) -> str:
           <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background-color:#ffffff;border-radius:12px;border:1px solid {_BORDER};">
             <tr>
               <td style="background-color:{_BRAND};padding:18px 32px;border-radius:12px 12px 0 0;">
-                <span style="color:#ffffff;font-size:14px;font-weight:600;letter-spacing:0.03em;">IBEDC &middot; INVOICING PLATFORM</span>
+                <span style="color:#ffffff;font-size:14px;font-weight:600;letter-spacing:0.03em;">KORA &middot; INVOICING PLATFORM</span>
               </td>
             </tr>
             <tr>
@@ -84,7 +84,7 @@ def _shell(preheader: str, body_html: str) -> str:
             </tr>
             <tr>
               <td style="padding:18px 32px;border-top:1px solid {_BORDER};">
-                <p style="margin:0;font-size:12px;color:{_MUTED};">This is an automated message from the IBEDC Invoicing Platform. Please do not reply directly to this email.</p>
+                <p style="margin:0;font-size:12px;color:{_MUTED};">This is an automated message from the Kora Invoicing Platform. Please do not reply directly to this email.</p>
               </td>
             </tr>
           </table>
@@ -125,7 +125,7 @@ def send_welcome_email(
         f"</td></tr></table>"
     )
     body = f"""
-    <h2 style="margin:0 0 12px;font-size:18px;color:{_TEXT};">Welcome to the IBEDC Invoicing Platform</h2>
+    <h2 style="margin:0 0 12px;font-size:18px;color:{_TEXT};">Welcome to the Kora Invoicing Platform</h2>
     <p style="margin:0 0 4px;color:{_MUTED};">Hi {_esc(name)}, an account has been created for you. Use the credentials below to sign in.</p>
     {credentials_block}
     {_button("Sign in", login_link)}
@@ -133,7 +133,7 @@ def send_welcome_email(
     """
     return send_email(
         to=to,
-        subject="Welcome to the IBEDC Invoicing Platform",
+        subject="Welcome to the Kora Invoicing Platform",
         html=_shell("Your account is ready", body),
     )
 
@@ -151,7 +151,7 @@ def send_password_reset_email(to: str, name: str, link: str) -> dict:
     """
     return send_email(
         to=to,
-        subject="Reset your password — IBEDC Invoicing Platform",
+        subject="Reset your password — Kora Invoicing Platform",
         html=_shell("Reset your password", body),
     )
 

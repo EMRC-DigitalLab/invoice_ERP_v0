@@ -190,7 +190,7 @@ def get_period_report_pdf(
         f"{from_date or 'inception'} to {to_date or 'present'} · status: {status}"
     )
     pdf_bytes = generate_period_report_pdf(requests, period_label)
-    filename = f"IBEDC-{status}-invoices-{from_date or 'all'}-{to_date or 'all'}.pdf"
+    filename = f"Kora-{status}-invoices-{from_date or 'all'}-{to_date or 'all'}.pdf"
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
@@ -277,7 +277,7 @@ def create_request(
     req_id = uuid.uuid4().hex
     year = datetime.now(timezone.utc).year
     count = db.query(Request).count() + 1
-    reference = f"IBEDC-REQ-{year}-{count:04d}"
+    reference = f"KORA-REQ-{year}-{count:04d}"
     now = datetime.now(timezone.utc)
 
     amount = get_effective_amount(payload)
