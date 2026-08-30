@@ -13,7 +13,7 @@ from app.models.request import ApprovalStep, Attachment, Request
 from app.services.approval_chains import get_effective_amount
 
 _ASSETS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets")
-_LOGO_PATH = os.path.join(_ASSETS_DIR, "kora-logo.png")
+_LOGO_PATH = os.path.join(_ASSETS_DIR, "kora-mark.png")
 _FONTS_DIR = os.path.join(_ASSETS_DIR, "fonts")
 
 _FONT_REGULAR = "Helvetica"
