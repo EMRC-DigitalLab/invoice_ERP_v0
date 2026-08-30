@@ -222,7 +222,8 @@ class CreateRequestPayload(BaseModel):
     purpose: str | None = None
     amount_proposed: float | None = None
 
-    # memo
+    # memo — currency is client-selectable here (unlike project_payment,
+    # which always derives it from the PO); defaults to NGN if omitted.
     memo_body: str | None = None
     memo_cc: str | None = None
     memo_subtype: str | None = None
@@ -231,6 +232,7 @@ class CreateRequestPayload(BaseModel):
     memo_ref_no: str | None = None
     vat_inclusive: bool | None = None
     line_items: list[MemoLineItemIn] | None = None
+    currency: str | None = None
 
     attachments: list[AttachmentIn] | None = None
 
