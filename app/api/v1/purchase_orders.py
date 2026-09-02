@@ -30,9 +30,11 @@ _CURRENCY_LABELS = {
     "naira (ngn)": "NGN",
     "dollar (usd)": "USD",
     "pound (gbp)": "GBP",
+    "euro (eur)": "EUR",
     "ngn": "NGN",
     "usd": "USD",
     "gbp": "GBP",
+    "eur": "EUR",
 }
 
 _JOB_TYPE_LABELS = {
